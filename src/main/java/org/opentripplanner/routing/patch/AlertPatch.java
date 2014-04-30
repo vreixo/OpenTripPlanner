@@ -55,7 +55,7 @@ public class AlertPatch extends AbstractPatch {
 
     @Override
     public void apply(Graph graph) {
-
+/*
         if (route != null || trip != null || agency != null) {
             List<RouteVariant> variants;
 
@@ -95,12 +95,12 @@ public class AlertPatch extends AbstractPatch {
             if(edge != null)
                 edge.addPatch(this);
         }
+*/
     }
 
     @Override
     public void remove(Graph graph) {
-            TransitIndexService index = graph.getService(TransitIndexService.class);
-
+/*
         if (route != null || trip != null || agency != null) {
             List<RouteVariant> variants;
 
@@ -140,6 +140,7 @@ public class AlertPatch extends AbstractPatch {
             if(edge != null)
                 edge.removePatch(this);
         }
+*/
     }
 
     @Override

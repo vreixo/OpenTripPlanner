@@ -36,7 +36,6 @@ import java.util.TimeZone;
 
 import junit.framework.TestCase;
 
-import org.codehaus.jettison.json.JSONException;
 import org.onebusaway.gtfs.model.Agency;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
@@ -604,7 +603,7 @@ public class TestRequest extends TestCase {
         assertTrue(leg.tripId.equals("190W1290"));
     }
 
-    public void testBannedStops() throws JSONException, ParameterException {
+    public void testBannedStops() throws ParameterException {
         // Plan short trip along NE GLISAN ST
         TestPlanner planner = new TestPlanner(
                 "portland", "NE 57TH AVE at NE GLISAN ST #2", "NE 30TH AVE at NE GLISAN ST");
@@ -623,7 +622,7 @@ public class TestRequest extends TestCase {
     }
 
     @SuppressWarnings("deprecation")
-    public void testBannedStopGroup() throws JSONException, ParameterException {
+    public void testBannedStopGroup() throws ParameterException {
         // Create StopMatcher instance
         StopMatcher stopMatcher = StopMatcher.parse("TriMet_2106,TriMet_65-tc");
         // Find stops in graph
@@ -656,7 +655,7 @@ public class TestRequest extends TestCase {
         assertFalse(stopMatcher.matches(stop2107));
     }
 
-    public void testBannedStopsHard() throws JSONException, ParameterException {
+    public void testBannedStopsHard() throws ParameterException {
         // Plan short trip along NE GLISAN ST
         TestPlanner planner = new TestPlanner(
                 "portland", "NE 57TH AVE at NE GLISAN ST #2", "NE 30TH AVE at NE GLISAN ST");
@@ -682,7 +681,7 @@ public class TestRequest extends TestCase {
         assertFalse(leg.tripId.equals("190W1280"));
     }
 
-    public void testWalkLimitExceeded() throws JSONException, ParameterException {
+    public void testWalkLimitExceeded() throws ParameterException {
         // Plan short trip
         TestPlanner planner = new TestPlanner(
                 "portland", "45.501115,-122.738214", "45.469487,-122.500343");
@@ -758,7 +757,6 @@ public class TestRequest extends TestCase {
      * @param expectedLegs is the number of expected legs
      * @param smaller if true, number of legs should be smaller;
      *                if false, number of legs should be exact
-     * @throws JSONException
      */
     private void checkLegsWithTransferPenalty(TestPlanner planner, int transferPenalty,
             int expectedLegs, boolean smaller) {
@@ -775,7 +773,7 @@ public class TestRequest extends TestCase {
         }
     }
 
-    public void testTripToTripTransfer() throws JSONException, ParseException {
+    public void testTripToTripTransfer() throws ParseException {
         ServiceDate serviceDate = new ServiceDate(2009, 10, 01);
 
         // Plan short trip
@@ -891,7 +889,7 @@ public class TestRequest extends TestCase {
         reset(graph);
     }
 
-    public void testTimedTripToTripTransfer() throws JSONException, ParseException {
+    public void testTimedTripToTripTransfer() throws ParseException {
         ServiceDate serviceDate = new ServiceDate(2009, 10, 01);
 
         // Plan short trip
@@ -951,7 +949,7 @@ public class TestRequest extends TestCase {
         reset(graph);
     }
 
-    public void testTimedStopToStopTransfer() throws JSONException, ParseException {
+    public void testTimedStopToStopTransfer() throws ParseException {
         ServiceDate serviceDate = new ServiceDate(2009, 10, 01);
 
         // Plan short trip

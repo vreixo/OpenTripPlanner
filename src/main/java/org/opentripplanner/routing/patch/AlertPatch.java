@@ -24,7 +24,6 @@ import org.onebusaway.gtfs.model.AgencyAndId;
 import org.opentripplanner.routing.core.StateEditor;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.services.TransitIndexService;
 import org.opentripplanner.routing.transit_index.RouteSegment;
 import org.opentripplanner.routing.transit_index.RouteVariant;
 import org.opentripplanner.routing.transit_index.adapters.AgencyAndIdAdapter;
@@ -56,7 +55,6 @@ public class AlertPatch extends AbstractPatch {
 
     @Override
     public void apply(Graph graph) {
-            TransitIndexService index = graph.getService(TransitIndexService.class);
 
         if (route != null || trip != null || agency != null) {
             List<RouteVariant> variants;
@@ -74,7 +72,7 @@ public class AlertPatch extends AbstractPatch {
             }
 
             for (RouteVariant variant : variants) {
-                if (direction != null && !direction.equals(variant.getDirection())) {
+                if (direction != null && ! direction.equals(variant.getDirection())) {
                     continue;
                 }
                 for (RouteSegment segment : variant.getSegments()) {

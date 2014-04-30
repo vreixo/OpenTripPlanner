@@ -472,7 +472,7 @@ public class TestRequest extends TestCase {
         assertEquals(1, stations.stations.size());
     }
 
-    public void testMetadata() throws JSONException {
+    public void testMetadata() {
         Metadata metadata = new Metadata();
         MetadataService metadataService = new MetadataService();
         metadata.setMetadataService(metadataService);
@@ -488,7 +488,7 @@ public class TestRequest extends TestCase {
     }
 
     /** Smoke test for patcher */
-    public void testPatcher() throws JSONException {
+    public void testPatcher() {
         Patcher p = new Patcher();
         PatchService service = mock(PatchService.class);
         when(service.getStopPatches(any(AgencyAndId.class))).thenReturn(new ArrayList<Patch>());
@@ -501,7 +501,7 @@ public class TestRequest extends TestCase {
         assertNull(routePatches.patches);
     }
 
-    public void testRouters() throws JSONException {
+    public void testRouters() {
         Routers routerApi = new Routers();
         routerApi.graphService = Context.getInstance().graphService;
         RouterList routers = routerApi.getRouterIds();
@@ -522,7 +522,7 @@ public class TestRequest extends TestCase {
         assertTrue(otherRouter.polygon.getArea() > 0);
     }
 
-    public void testTransitIndex() throws JSONException {
+    public void testTransitIndex() {
         TransitIndex index = new TransitIndex();
         index.setGraphService(Context.getInstance().graphService);
         String routerId = "portland";
@@ -588,7 +588,7 @@ public class TestRequest extends TestCase {
         // assertTrue(stopTimesForTrip.stopTimes.size() > 0);
     }
 
-    public void testBannedTrips() throws JSONException {
+    public void testBannedTrips() {
         // Plan short trip along NE GLISAN ST
         TestPlanner planner = new TestPlanner(
                 "portland", "NE 57TH AVE at NE GLISAN ST #2", "NE 30TH AVE at NE GLISAN ST");
@@ -705,7 +705,7 @@ public class TestRequest extends TestCase {
     /**
      * Test the influence of increasing the walk reluctance.
      */
-    public void testWalkReluctance() throws JSONException {
+    public void testWalkReluctance() {
         // Test planning a trip with a walk reluctance of 1
         TestPlanner planner = new TestPlanner("portland", "45.440947,-122.837645", "45.463966,-122.755822");
         planner.setMaxWalkDistance(Arrays.asList(Double.POSITIVE_INFINITY));
@@ -729,7 +729,7 @@ public class TestRequest extends TestCase {
         assertTrue(duration < itinerary.duration);
     }
 
-    public void testTransferPenalty() throws JSONException {
+    public void testTransferPenalty() {
         // Plan short trip
         TestPlanner planner = new TestPlanner(
                 "portland", "45.5264892578125,-122.60479259490967", "45.511622,-122.645564");
@@ -740,7 +740,7 @@ public class TestRequest extends TestCase {
         checkLegsWithTransferPenalty(planner, 1800, 7, true);
     }
 
-    public void testTransferPenalty2() throws JSONException {
+    public void testTransferPenalty2() {
         // Plan short trip
         TestPlanner planner = new TestPlanner(
                 "portland", "45.514861,-122.612035", "45.483096,-122.540624");
@@ -761,7 +761,7 @@ public class TestRequest extends TestCase {
      * @throws JSONException
      */
     private void checkLegsWithTransferPenalty(TestPlanner planner, int transferPenalty,
-            int expectedLegs, boolean smaller) throws JSONException {
+            int expectedLegs, boolean smaller) {
         // Set transfer penalty
         planner.setTransferPenalty(Arrays.asList(transferPenalty));
         // Do the planning
@@ -827,7 +827,7 @@ public class TestRequest extends TestCase {
         reset(graph);
     }
 
-    public void testForbiddenTripToTripTransfer() throws JSONException {
+    public void testForbiddenTripToTripTransfer() {
         // Plan short trip
         TestPlanner planner = new TestPlanner(
                 "portland", "45.5264892578125,-122.60479259490967", "45.511622,-122.645564");
@@ -859,7 +859,7 @@ public class TestRequest extends TestCase {
         reset(graph);
     }
 
-    public void testPreferredTripToTripTransfer() throws JSONException {
+    public void testPreferredTripToTripTransfer() {
         // Plan short trip
         TestPlanner planner = new TestPlanner(
                 "portland", "45.506077,-122.621139", "45.464637,-122.706061");
@@ -1025,7 +1025,7 @@ public class TestRequest extends TestCase {
     /**
      * Test the bike switching penalty feature, both its cost penalty and its separate time penalty.
      */
-    public void testBikeSwitch() throws JSONException {
+    public void testBikeSwitch() {
         // Test planning a trip with bike and transit without any added penalties
         TestPlanner planner = new TestPlanner("portland", "45.440947,-122.837645", "45.463966,-122.755822");
         planner.setMaxWalkDistance(Arrays.asList(Double.POSITIVE_INFINITY));

@@ -13,21 +13,14 @@
 
 package org.opentripplanner.api.resource;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
-import java.util.SimpleTimeZone;
-import java.util.TimeZone;
-
+import com.google.transit.realtime.GtfsRealtime.TripDescriptor;
+import com.google.transit.realtime.GtfsRealtime.TripUpdate;
+import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeEvent;
+import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
+import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LineString;
 import org.junit.Test;
 import org.onebusaway.gtfs.impl.calendar.CalendarServiceImpl;
 import org.onebusaway.gtfs.model.Agency;
@@ -44,9 +37,9 @@ import org.opentripplanner.api.model.Leg;
 import org.opentripplanner.api.model.Place;
 import org.opentripplanner.api.model.RelativeDirection;
 import org.opentripplanner.api.model.WalkStep;
-import org.opentripplanner.api.resource.PlanGenerator;
 import org.opentripplanner.common.geometry.PackedCoordinateSequence;
 import org.opentripplanner.gtfs.BikeAccess;
+import org.opentripplanner.model.StopPattern;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
 import org.opentripplanner.routing.core.Fare;
 import org.opentripplanner.routing.core.Fare.FareType;
@@ -55,16 +48,16 @@ import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.ServiceDay;
 import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.core.TraverseMode;
-import org.opentripplanner.routing.core.TraverseModeSet;
 import org.opentripplanner.routing.core.WrappedCurrency;
 import org.opentripplanner.routing.edgetype.*;
-import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.location.StreetLocation;
 import org.opentripplanner.routing.patch.Alert;
 import org.opentripplanner.routing.patch.AlertPatch;
+import org.opentripplanner.routing.patch.TimePeriod;
 import org.opentripplanner.routing.services.FareService;
 import org.opentripplanner.routing.spt.GraphPath;
+import org.opentripplanner.routing.trippattern.TripTimes;
 import org.opentripplanner.routing.vertextype.BikeRentalStationVertex;
 import org.opentripplanner.routing.vertextype.ExitVertex;
 import org.opentripplanner.routing.vertextype.IntersectionVertex;
@@ -77,15 +70,16 @@ import org.opentripplanner.routing.vertextype.TransitStopDepart;
 import org.opentripplanner.updater.stoptime.TimetableSnapshotSource;
 import org.opentripplanner.util.model.EncodedPolylineBean;
 
-import com.google.transit.realtime.GtfsRealtime.TripDescriptor;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeEvent;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
-import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate.ScheduleRelationship;
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geom.LineString;
-import org.opentripplanner.routing.patch.TimePeriod;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.SimpleTimeZone;
+import java.util.TimeZone;
+
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class PlanGeneratorTest {
     private static final double[] F_DISTANCE = {3, 9996806.8, 3539050.5, 11, 2478638.8, 4, 2, 1, 0};
@@ -102,7 +96,7 @@ public class PlanGeneratorTest {
     private static final String alertsExample =
             "Mine is the last voice that you will ever hear. Do not be alarmed.";
 
-    private static final PlanGenerator planGenerator = new PlanGenerator();
+    private static final PlanGenerator planGenerator = new PlanGenerator(null, null);
 
     /**
      * Test the generateItinerary() method. This test is intended to be comprehensive but fast.
@@ -342,64 +336,47 @@ public class PlanGeneratorTest {
         thirdStopTimes.add(ferryStopArriveTime);
 
         // Various patterns that are required to construct a full graph path, plus initialization
-        ScheduledStopPattern firstStopPattern = ScheduledStopPattern.fromTrip(
-                firstTrip, firstStopTimes);
-        ScheduledStopPattern secondStopPattern = ScheduledStopPattern.fromTrip(
-                secondTrip, secondStopTimes);
-        ScheduledStopPattern thirdStopPattern = ScheduledStopPattern.fromTrip(
-                thirdTrip, thirdStopTimes);
+        StopPattern firstStopPattern  = new StopPattern(firstStopTimes);
+        StopPattern secondStopPattern = new StopPattern(secondStopTimes);
+        StopPattern thirdStopPattern  = new StopPattern(thirdStopTimes);
 
-        TripPattern firstTripPattern = new TripPattern(firstTrip, firstStopPattern, 0);
-        TripPattern secondTripPattern = new TripPattern(secondTrip, secondStopPattern, 1);
-        TripPattern thirdTripPattern = new TripPattern(thirdTrip, thirdStopPattern, 2);
+        TripPattern firstTripPattern  = new TripPattern(firstRoute, firstStopPattern);
+        TripPattern secondTripPattern = new TripPattern(secondRoute, secondStopPattern);
+        TripPattern thirdTripPattern  = new TripPattern(thirdRoute, thirdStopPattern);
 
-        firstTripPattern.addTrip(firstTrip, firstStopTimes);
-        secondTripPattern.addTrip(secondTrip, secondStopTimes);
-        thirdTripPattern.addTrip(thirdTrip, thirdStopTimes);
+        TripTimes firstTripTimes  = new TripTimes(firstTrip, firstStopTimes);
+        TripTimes secondTripTimes = new TripTimes(secondTrip, secondStopTimes);
+        TripTimes thirdTripTimes  = new TripTimes(thirdTrip, thirdStopTimes);
+
+        firstTripPattern.add(firstTripTimes);
+        secondTripPattern.add(secondTripTimes);
+        thirdTripPattern.add(thirdTripTimes);
 
         // Vertices for legs 1, 2 and 3
-        TransitStop v6 = new TransitStop(
-                graph, trainStopDepart);
-        TransitStopDepart v8 = new TransitStopDepart(
-                graph, trainStopDepart, v6);
-        PatternDepartVertex v10 = new PatternDepartVertex(
-                graph, firstTripPattern, trainStopDepartTime);
-        PatternArriveVertex v12 = new PatternArriveVertex(
-                graph, firstTripPattern, trainStopDwellTime);
-        PatternDepartVertex v14 = new PatternDepartVertex(
-                graph, firstTripPattern, trainStopDwellTime);
-        PatternArriveVertex v16 = new PatternArriveVertex(
-                graph, firstTripPattern, trainStopInterlineFirstTime);
-        PatternDepartVertex v18 = new PatternDepartVertex(
-                graph, secondTripPattern, trainStopInterlineSecondTime);
-        PatternArriveVertex v20 = new PatternArriveVertex(
-                graph, secondTripPattern, trainStopArriveTime);
-        TransitStop v24 = new TransitStop(
-                graph, trainStopArrive);
-        TransitStopArrive v22 = new TransitStopArrive(
-                graph, trainStopArrive, v24);
+        TransitStop v6 = new TransitStop(graph, trainStopDepart);
+        TransitStopDepart v8 = new TransitStopDepart(graph, trainStopDepart, v6);
+        // To understand the stop indexes in the vertex constructors, look at firstStopTimes.add() etc. above
+        PatternDepartVertex v10 = new PatternDepartVertex(graph, firstTripPattern, 0);
+        PatternArriveVertex v12 = new PatternArriveVertex(graph, firstTripPattern, 1);
+        PatternDepartVertex v14 = new PatternDepartVertex(graph, firstTripPattern, 1);
+        PatternArriveVertex v16 = new PatternArriveVertex(graph, firstTripPattern, 2);
+        PatternDepartVertex v18 = new PatternDepartVertex(graph, secondTripPattern, 0);
+        PatternArriveVertex v20 = new PatternArriveVertex(graph, secondTripPattern, 1);
+        TransitStop v24 = new TransitStop(graph, trainStopArrive);
+        TransitStopArrive v22 = new TransitStopArrive(graph, trainStopArrive, v24);
 
         // Vertices for legs 3 and 4
-        TransitStop v26 = new TransitStop(
-                graph, ferryStopDepart);
-        TransitStopDepart v28 = new TransitStopDepart(
-                graph, ferryStopDepart, v26);
-        PatternDepartVertex v30 = new PatternDepartVertex(
-                graph, thirdTripPattern, ferryStopDepartTime);
-        PatternArriveVertex v32 = new PatternArriveVertex(
-                graph, thirdTripPattern, ferryStopArriveTime);
-        TransitStop v36 = new TransitStop(
-                graph, ferryStopArrive);
-        TransitStopArrive v34 = new TransitStopArrive(
-                graph, ferryStopArrive, v36);
+        TransitStop v26 = new TransitStop(graph, ferryStopDepart);
+        TransitStopDepart v28 = new TransitStopDepart(graph, ferryStopDepart, v26);
+        PatternDepartVertex v30 = new PatternDepartVertex(graph, thirdTripPattern, 0);
+        PatternArriveVertex v32 = new PatternArriveVertex(graph, thirdTripPattern, 1);
+        TransitStop v36 = new TransitStop(graph, ferryStopArrive);
+        TransitStopArrive v34 = new TransitStopArrive(graph, ferryStopArrive, v36);
 
         // Vertices for leg 5
-        IntersectionVertex v38 = new IntersectionVertex(
-                graph, "Vertex 38", 179, 89);
-        IntersectionVertex v40 = new IntersectionVertex(
-                graph, "Vertex 40", 180, 89);
-        IntersectionVertex v42 = new IntersectionVertex(
-                graph, "Vertex 42", 180, 90);
+        IntersectionVertex v38 = new IntersectionVertex(graph, "Vertex 38", 179, 89);
+        IntersectionVertex v40 = new IntersectionVertex(graph, "Vertex 40", 180, 89);
+        IntersectionVertex v42 = new IntersectionVertex(graph, "Vertex 42", 180, 90);
 
         // Bike rental stations for legs 5, 6 and 7, plus initialization
         BikeRentalStation enterPickupStation = new BikeRentalStation();
@@ -589,15 +566,14 @@ public class PlanGeneratorTest {
                 "Extra edge", 1.9, StreetTraversalPermission.NONE, true, 0);
 
         // Various bookkeeping operations
-        HashMap<AgencyAndId, Integer> serviceId = new HashMap<AgencyAndId, Integer>(3);
+        // FIXME this is not correctly setting the codes map.
+        /*
+        graph.serviceCodes.put(firstTrip.getServiceId(), firstTripPattern);
+        graph.serviceCodes.put(secondTrip.getServiceId(), secondTripPattern.getServiceId());
+        graph.serviceCodes.put(thirdTrip.getId(), thirdTripPattern.getServiceId());
+        */
 
-        serviceId.put(firstTrip.getId(), firstTripPattern.getServiceId());
-        serviceId.put(secondTrip.getId(), secondTripPattern.getServiceId());
-        serviceId.put(thirdTrip.getId(), thirdTripPattern.getServiceId());
-
-        graph.serviceIdIntegers = serviceId;
-
-        CalendarServiceData calendarServiceData = new CalendarServiceDataStub(serviceId.keySet());
+        CalendarServiceData calendarServiceData = new CalendarServiceDataStub(graph.serviceCodes.keySet());
         CalendarServiceImpl calendarServiceImpl = new CalendarServiceImpl(calendarServiceData);
 
         calendarServiceData.putTimeZoneForAgencyId("Train", timeZone);
@@ -650,7 +626,6 @@ public class PlanGeneratorTest {
                 thirdTripPattern, tripUpdate, "Ferry", timeZone, serviceDate);
 
         // Further graph initialization
-        graph.serviceIdIntegers = serviceId;
         graph.putService(CalendarServiceData.class, calendarServiceData);
         graph.putService(FareService.class, fareServiceStub);
         graph.addAgency(trainAgency);
@@ -663,7 +638,7 @@ public class PlanGeneratorTest {
         // Temporary graph objects for onboard depart tests
         OnboardDepartVertex onboardDepartVertex = new OnboardDepartVertex("Onboard", 23.0, 12.0);
         OnBoardDepartPatternHop onBoardDepartPatternHop = new OnBoardDepartPatternHop(
-                onboardDepartVertex, v12, firstTripPattern.getTripTimes(0), serviceDay, 0, 0.5);
+                onboardDepartVertex, v12, firstTripPattern.getScheduledTimetable().getTripTimes(0), serviceDay, 0, 0.5);
 
         // Traverse the path forward first
         RoutingRequest forwardOptions = options.clone();

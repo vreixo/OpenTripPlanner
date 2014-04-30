@@ -407,7 +407,7 @@ public class State implements Cloneable {
      */
     public Trip getBackTrip () {
         if (backEdge instanceof TablePatternEdge) {
-            return stateData.tripTimes.getTrip();
+            return stateData.tripTimes.trip;
         }
         else {
             return backEdge.getTrip();

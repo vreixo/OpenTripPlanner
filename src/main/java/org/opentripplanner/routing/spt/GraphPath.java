@@ -62,12 +62,17 @@ public class GraphPath {
     public GraphPath(State s, boolean optimize) {
         this.rctx = s.getContext();
         this.back = s.getOptions().isArriveBy();
-        
+        // optimize = false; // DEBUG
         if (s.getOptions().getStartingTransitTripId() != null) {
             LOG.debug("Disable reverse-optimize for on-board depart");
             optimize = false;
         }
-        
+
+//        LOG.info("NORMAL");
+//        s.dumpPath();
+//        LOG.info("OPTIMIZED");
+//        s.optimize().dumpPath();
+
         /* Put path in chronological order, and optimize as necessary */
         State lastState;
         walkDistance = s.getWalkDistance();
@@ -94,7 +99,7 @@ public class GraphPath {
                 edges.addFirst(cur.getBackEdge());
             }
         }
-        //dump();
+        // dump();
     }
 
     /**

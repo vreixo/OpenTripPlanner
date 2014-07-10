@@ -20,10 +20,12 @@ import java.io.InputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
+import org.apache.http.Header;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
@@ -47,6 +49,26 @@ public class HttpUtils {
         }
         return entity.getContent();
     }
+
+    public static InputStream getDataPost(String url, Header[] headers,
+                                               HttpEntity postData) throws IOException {
+        HttpPost httppost = new HttpPost(url);
+        for (Header h : headers){
+            httppost.addHeader(h);
+        }
+        httppost.setEntity(postData);
+        HttpClient httpclient = getClient();
+        HttpResponse response = httpclient.execute(httppost);
+        if(response.getStatusLine().getStatusCode() != 200)
+            return null;
+
+        HttpEntity entity = response.getEntity();
+        if (entity == null) {
+            return null;
+        }
+        return entity.getContent();
+    }
+
 
     public static void testUrl(String url) throws IOException {
         HttpHead head = new HttpHead(url);

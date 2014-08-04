@@ -4,6 +4,7 @@ import com.bedatadriven.geojson.GeometryDeserializer;
 import com.bedatadriven.geojson.GeometrySerializer;
 import com.csvreader.CsvReader;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -21,12 +22,27 @@ import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.geom.PrecisionModel;
 
+import org.geotools.data.FileDataStore;
+import org.geotools.data.FileDataStoreFinder;
+import org.geotools.data.Query;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.referencing.CRS;
+import org.opengis.feature.Property;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.type.PropertyType;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.NoSuchAuthorityCodeException;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opentripplanner.analyst.batch.Individual;
 import org.opentripplanner.analyst.pointset.PropertyMetadata;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.services.GraphService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -35,6 +51,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -98,9 +115,9 @@ public class PointSet implements Serializable{
 	 * This includes column headers in the category:subcategory:attribute format
 	 * and coordinates in WGS84. Comments begin with a #.
 	 */
-	public static PointSet fromCsv(String filename) throws IOException {
+	public static PointSet fromCsv(File filename) throws IOException {
 		/* First, scan through the file to count lines and check for errors. */
-		CsvReader reader = new CsvReader(filename, ',', Charset.forName("UTF8"));
+		CsvReader reader = new CsvReader(filename.getAbsolutePath(), ',', Charset.forName("UTF8"));
 		reader.readHeaders();
 		int nCols = reader.getHeaderCount();
 		while (reader.readRecord()) {
@@ -114,7 +131,7 @@ public class PointSet implements Serializable{
 		int nRecs = (int) reader.getCurrentRecord() + 1;
 		reader.close();
 		/* If we reached here, the file is entirely readable. Start over. */
-		reader = new CsvReader(filename, ',', Charset.forName("UTF8"));
+		reader = new CsvReader(filename.getAbsolutePath(), ',', Charset.forName("UTF8"));
 		PointSet ret = new PointSet(nRecs);
 		reader.readHeaders();
 		if (reader.getHeaderCount() != nCols) {
@@ -159,8 +176,63 @@ public class PointSet implements Serializable{
 		ret.capacity = nRecs;
 		return ret;
 	}
+	
+	public static PointSet fromShapefile( File file ) throws IOException, NoSuchAuthorityCodeException, FactoryException, EmptyPolygonException, UnsupportedGeometryException {
+        if ( ! file.exists())
+            throw new RuntimeException("Shapefile does not exist.");
+        
+        FileDataStore store = FileDataStoreFinder.getDataStore(file);
+        SimpleFeatureSource featureSource = store.getFeatureSource();
 
-	public static PointSet fromGeoJson(String filename) {
+        CoordinateReferenceSystem sourceCRS = featureSource.getInfo().getCRS();
+        CoordinateReferenceSystem WGS84 = CRS.decode("EPSG:4326", true);
+        
+        Query query = new Query();
+        query.setCoordinateSystem(sourceCRS);
+        query.setCoordinateSystemReproject(WGS84);
+        SimpleFeatureCollection featureCollection = featureSource.getFeatures(query);
+        
+        SimpleFeatureIterator it = featureCollection.features();
+        
+        PointSet ret = new PointSet(featureCollection.size());
+        int i=0;
+        while (it.hasNext()) {
+            SimpleFeature feature = it.next();
+            Geometry geom = (Geometry) feature.getDefaultGeometry();
+            
+            PointFeature ft = new PointFeature();
+            ft.setGeom(geom);
+            for(Property prop : feature.getProperties() ){
+            	Object binding = prop.getType().getBinding();
+            	
+            	//attempt to coerce the prop's value into an integer
+            	int val;
+            	if(binding.equals(Integer.class)){
+            		val = (Integer)prop.getValue();
+            	} else if(binding.equals(Long.class)){
+            		val = ((Long)prop.getValue()).intValue();
+            	} else if(binding.equals(String.class)){
+            		try{
+            			val = Integer.parseInt((String)prop.getValue());
+            		} catch (NumberFormatException ex ){
+            			continue;
+            		}
+            	} else {
+            		continue;
+            	}
+            	
+            	ft.addAttribute(prop.getName().toString(), val);
+            }
+            
+            ret.addFeature(ft, i);
+            
+            i++;
+        }
+        
+        return ret;
+	}
+
+	public static PointSet fromGeoJson(File filename) {
 		try {
 			FileInputStream fis = new FileInputStream(filename);
 			int n = validateGeoJson(fis);
@@ -386,7 +458,7 @@ public class PointSet implements Serializable{
 		if (polygons[index] != null) {
 			try {
 				ret.setGeom(polygons[index]);
-			} catch (Exception e) {
+			} catch (Exception e) {	
 				// The polygon is clean; this should never happen. We
 				// could pass the exception up but that'd just make the calling
 				// function deal with an exception that will never pop. So
@@ -461,56 +533,8 @@ public class PointSet implements Serializable{
 
 				jgen.writeStringField("type", "FeatureCollection");
 
-				jgen.writeObjectFieldStart("properties");
-				{
-
-					if (id != null)
-						jgen.writeStringField("id", id);
-					if (label != null)
-						jgen.writeStringField("label", label);
-					if (description != null)
-						jgen.writeStringField("description", description);
-
-					// writes schema as a flat namespace with cat_id and
-					// cat_id:prop_id interleaved
-
-					jgen.writeObjectFieldStart("schema");
-					{
-
-						for (PropertyMetadata cat : this.propMetadata.values()) {
-
-							jgen.writeObjectFieldStart(cat.id);
-							{
-								if (cat.label != null)
-									jgen.writeStringField("label", cat.label);
-								jgen.writeStringField("type", "Category");
-
-								if (cat.style != null && cat.style.attributes != null) {
-
-									jgen.writeObjectFieldStart("style");
-									{
-
-										for (String styleKey : cat.style.attributes.keySet()) {
-											jgen.writeStringField(styleKey, cat.style.attributes.get(styleKey));
-										}
-									}
-									jgen.writeEndObject();
-
-								}
-
-							}
-							jgen.writeEndObject();
-
-							// two-level hierarchy for now... could be extended
-							// to recursively map
-							// categories,sub-categories,attributes
-						}
-
-					}
-					jgen.writeEndObject();
-				}
-				jgen.writeEndObject();
-
+				writeJsonProperties(jgen);
+				
 				jgen.writeArrayFieldStart("features");
 				{
 					for (int f = 0; f < capacity; f++) {
@@ -524,6 +548,59 @@ public class PointSet implements Serializable{
 		} catch (IOException ioex) {
 			LOG.info("IOException, connection may have been closed while streaming JSON.");
 		}
+	}
+	
+	public void writeJsonProperties(JsonGenerator jgen) throws JsonGenerationException, IOException {
+		jgen.writeObjectFieldStart("properties");
+		{
+
+			if (id != null)
+				jgen.writeStringField("id", id);
+			if (label != null)
+				jgen.writeStringField("label", label);
+			if (description != null)
+				jgen.writeStringField("description", description);
+
+			// writes schema as a flat namespace with cat_id and
+			// cat_id:prop_id interleaved
+
+			jgen.writeObjectFieldStart("schema");
+			{
+
+				for (PropertyMetadata cat : this.propMetadata.values()) {
+
+					jgen.writeObjectFieldStart(cat.id);
+					{
+						if (cat.label != null)
+							jgen.writeStringField("label", cat.label);
+						jgen.writeStringField("type", "Category");
+
+						if (cat.style != null && cat.style.attributes != null) {
+
+							jgen.writeObjectFieldStart("style");
+							{
+
+								for (String styleKey : cat.style.attributes.keySet()) {
+									jgen.writeStringField(styleKey, cat.style.attributes.get(styleKey));
+								}
+							}
+							jgen.writeEndObject();
+
+						}
+
+					}
+					jgen.writeEndObject();
+
+					// two-level hierarchy for now... could be extended
+					// to recursively map
+					// categories,sub-categories,attributes
+				}
+
+			}
+			jgen.writeEndObject();
+		}
+		jgen.writeEndObject();
+
 	}
 
 	/**

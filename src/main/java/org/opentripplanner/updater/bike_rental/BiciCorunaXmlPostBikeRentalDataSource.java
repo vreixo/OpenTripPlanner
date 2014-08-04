@@ -31,12 +31,11 @@ import org.xml.sax.SAXException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.prefs.Preferences;
 
+import javax.xml.XMLConstants;
+import javax.xml.namespace.NamespaceContext;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -60,6 +59,28 @@ public abstract class BiciCorunaXmlPostBikeRentalDataSource implements BikeRenta
         XPathFactory factory = XPathFactory.newInstance();
 
         XPath xpath = factory.newXPath();
+
+        xpath.setNamespaceContext(new NamespaceContext() {
+
+            public String getNamespaceURI(String prefix) {
+                if (prefix.equals("soap")) return "http://www.w3.org/2003/05/soap-envelope";
+                else if (prefix.equals("xsi")) return "http://www.w3.org/2001/XMLSchema-instance";
+                else if (prefix.equals("xsd")) return "http://www.w3.org/2001/XMLSchema";
+                else if (prefix.equals("")) return "http://aparcabicis.nextgal.es/";
+                else return XMLConstants.NULL_NS_URI;
+            }
+
+            public String getPrefix(String namespace) {
+                if (namespace.equals("http://www.w3.org/2003/05/soap-envelope")) return "soap";
+                else if (namespace.equals("http://www.w3.org/2001/XMLSchema-instance")) return "xsi";
+                else if (namespace.equals("http://www.w3.org/2001/XMLSchema")) return "xsd";
+                else if (namespace.equals("http://aparcabicis.nextgal.es/")) return "";
+                else return null;
+            }
+
+            public Iterator getPrefixes(String namespace) {return null;}
+
+        });
         try {
             xpathExpr = xpath.compile(path);
         } catch (XPathExpressionException e) {

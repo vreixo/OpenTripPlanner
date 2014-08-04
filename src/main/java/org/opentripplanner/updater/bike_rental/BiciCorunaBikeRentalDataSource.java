@@ -19,13 +19,10 @@ import java.util.Map;
 
 public class BiciCorunaBikeRentalDataSource extends BiciCorunaXmlPostBikeRentalDataSource {
     public BiciCorunaBikeRentalDataSource() {
-        super("//soap12:Envelope/soap12:Body/GetEstacionesResponse");
+        super("//soap:Envelope/soap:Body/:GetEstacionesResponse/:GetEstacionesResult/:EstacionAdditionalInformationDto");
     }
 
     public BikeRentalStation makeStation(Map<String, String> attributes) {
-        if (!"true".equals(attributes.get("installed"))) {
-            return null;
-        }
         BikeRentalStation brstation = new BikeRentalStation();
         brstation.id = attributes.get("IdEstacion");
         brstation.x = Double.parseDouble(attributes.get("Latitud"));

@@ -123,7 +123,10 @@ public class NEDGridCoverageFactoryImpl implements ElevationGridCoverageFactory 
             loadVerticalDatum();
             tileSource.setGraph(graph);
             tileSource.setCacheDirectory(cacheDirectory);
-            List<File> paths = tileSource.getNEDTiles();
+            List<File> paths = new ArrayList<File>();
+            File file = new File(cacheDirectory, "ned.tiff");
+            paths.add(file);
+          //  List<File> paths = tileSource.getNEDTiles();
             for (File path : paths) {
                 GeotiffGridCoverageFactoryImpl factory = new GeotiffGridCoverageFactoryImpl();
                 factory.setPath(path);

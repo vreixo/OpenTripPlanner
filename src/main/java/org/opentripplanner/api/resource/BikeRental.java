@@ -35,12 +35,14 @@ import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.services.GraphService;
 
 import com.vividsolutions.jts.geom.Envelope;
+import org.opentripplanner.standalone.OTPServer;
 
 @Path("/routers/{routerId}/bike_rental")
 @XmlRootElement
 public class BikeRental {
 
-    @Context // FIXME inject Application context
+    @Context
+    OTPServer otpServer;
     @Setter
     private GraphService graphService;
 
@@ -51,7 +53,7 @@ public class BikeRental {
             @QueryParam("upperRight") String upperRight,
             @PathParam("routerId") String routerId) {
 
-        Graph graph = graphService.getGraph(routerId);
+        Graph graph = otpServer.graphService.getGraph(routerId);
         if (graph == null) return null;
         BikeRentalStationService bikeRentalService = graph.getService(BikeRentalStationService.class);
         if (bikeRentalService == null) return new BikeRentalStationList();

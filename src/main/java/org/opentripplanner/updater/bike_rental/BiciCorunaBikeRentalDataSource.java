@@ -25,8 +25,8 @@ public class BiciCorunaBikeRentalDataSource extends BiciCorunaXmlPostBikeRentalD
     public BikeRentalStation makeStation(Map<String, String> attributes) {
         BikeRentalStation brstation = new BikeRentalStation();
         brstation.id = attributes.get("IdEstacion");
-        brstation.x = Double.parseDouble(attributes.get("Latitud"));
-        brstation.y = Double.parseDouble(attributes.get("Longitud"));
+        brstation.y = Double.parseDouble(attributes.get("Latitud"));
+        brstation.x = Double.parseDouble(attributes.get("Longitud"));
         brstation.name = attributes.get("Nombre");
         brstation.bikesAvailable = Integer.parseInt(attributes.get("BicisDisponibles"));
         brstation.spacesAvailable = Integer.parseInt(attributes.get("PuestosLibres"));

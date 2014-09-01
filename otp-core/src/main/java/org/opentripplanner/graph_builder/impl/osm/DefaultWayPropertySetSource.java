@@ -80,8 +80,8 @@ public class DefaultWayPropertySetSource implements WayPropertySetSource {
         setProperties(props, "highway=service", StreetTraversalPermission.ALL, 1.1, 1.1);
         setProperties(props, "highway=residential", StreetTraversalPermission.ALL, 0.98, 0.98);
         setProperties(props, "highway=residential_link", StreetTraversalPermission.ALL, 0.98, 0.98);
-        setProperties(props, "highway=tertiary", StreetTraversalPermission.ALL, 1, 1);
-        setProperties(props, "highway=tertiary_link", StreetTraversalPermission.ALL, 1, 1);
+        setProperties(props, "highway=tertiary", StreetTraversalPermission.ALL, 1.35, 1.35);
+        setProperties(props, "highway=tertiary_link", StreetTraversalPermission.ALL, 1.35, 1.35);
         setProperties(props, "highway=secondary", StreetTraversalPermission.ALL, 1.5, 1.5);
         setProperties(props, "highway=secondary_link", StreetTraversalPermission.ALL, 1.5, 1.5);
         setProperties(props, "highway=primary", StreetTraversalPermission.ALL, 2.06, 2.06);

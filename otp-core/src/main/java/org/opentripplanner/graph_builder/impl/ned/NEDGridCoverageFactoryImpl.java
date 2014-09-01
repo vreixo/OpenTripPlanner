@@ -46,7 +46,9 @@ public class NEDGridCoverageFactoryImpl implements NEDGridCoverageFactory {
 
     private NEDTileSource tileSource = new NEDDownloader();
 
+/*
     private List<VerticalDatum> datums;
+*/
 
     public NEDGridCoverageFactoryImpl () { }
     
@@ -102,36 +104,40 @@ public class NEDGridCoverageFactoryImpl implements NEDGridCoverageFactory {
      * 
      * The datum rasters must be downloaded from the OTP website and placed in the NED cache directory. 
      */
-    private void loadVerticalDatum () {
+/*    private void loadVerticalDatum () {
         if (datums == null) {
             datums = new ArrayList<VerticalDatum>();
-            String[] datumFilenames = {"g2012a00.gtx","g2012g00.gtx","g2012h00.gtx","g2012p00.gtx","g2012s00.gtx","g2012u00.gtx"};
+            String[] datumFilenames = {"egm96_15.gtx"};
             try {
                 for (String filename : datumFilenames) {
                     File datumFile = new File(cacheDirectory, filename);
-                    VerticalDatum datum = VerticalDatum.fromGTX(new FileInputStream(datumFile)); 
+                    VerticalDatum datum = VerticalDatum.fromGTX(new FileInputStream(datumFile));
                     datums.add(datum);
                 }
             } catch (IOException e) {
                 LOG.error("OTP needs additional files (a vertical datum) to convert between NED elevations and OSM's WGS84 elevations. See https://github.com/openplans/OpenTripPlanner/wiki/GraphBuilder#elevation-data for further information.");
                 throw new RuntimeException(e);
-            }            
+            }
         }
-    }
+    }*/
     
     public Coverage getGridCoverage() {
         if (coverage == null) {
+/*
             loadVerticalDatum();
+*/
             tileSource.setGraph(graph);
             tileSource.setCacheDirectory(cacheDirectory);
-            List<File> paths = tileSource.getNEDTiles();
+            List<File> paths = new ArrayList<File>();
+            File file = new File(cacheDirectory, "ned.tiff");
+            paths.add(file);
             for (File path : paths) {
                 GeotiffGridCoverageFactoryImpl factory = new GeotiffGridCoverageFactoryImpl();
                 factory.setPath(path);
                 GridCoverage2D regionCoverage = Interpolator2D.create(factory.getGridCoverage(),
                         new InterpolationBilinear());
                 if (coverage == null) {
-                    coverage = new UnifiedGridCoverage("unified", regionCoverage, datums);
+                    coverage = new UnifiedGridCoverage("unified", regionCoverage/*, datums*/);
                 } else {
                     coverage.add(regionCoverage);
                 }

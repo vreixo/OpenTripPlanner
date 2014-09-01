@@ -42,13 +42,17 @@ public class UnifiedGridCoverage extends AbstractCoverage {
     
     private ArrayList<Coverage> regions;
 
+/*
     private List<VerticalDatum> datums;
+*/
 
-    protected UnifiedGridCoverage(CharSequence name, Coverage coverage, List<VerticalDatum> datums) {
+    protected UnifiedGridCoverage(CharSequence name, Coverage coverage/*, List<VerticalDatum> datums*/) {
         super(name, coverage);
         regions = new ArrayList<Coverage>();
         regions.add(coverage);
+/*
         this.datums = datums;
+*/
     }
 
     @Override
@@ -71,18 +75,24 @@ public class UnifiedGridCoverage extends AbstractCoverage {
                 double y = point.getOrdinate(1);
                 try {
                     result = region.evaluate(point, values);
-                    for (VerticalDatum datum : datums) {
+/*                    for (VerticalDatum datum : datums) {
                         if (datum.covers(x, y)) {
-                            result[0] += datum.interpolatedHeight(x, y);
+                            result[0] += datum.interpolatedHeight(x, y);*/
                             return result;
+/*
                         }
-                    }
+*/
+                    /*}*/
                     //if we get here, all vdatums failed.
+/*
                     log.error("Failed to convert elevation at " + y + ", " + x + " from NAVD88 to NAD83");
+*/
                 } catch (PointOutsideCoverageException e) {
                     continue;
                 }
+/*
                 return result;
+*/
             }
         }
         /* not found */

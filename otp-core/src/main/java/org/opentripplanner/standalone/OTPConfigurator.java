@@ -8,6 +8,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.opentripplanner.analyst.core.GeometryIndex;
+import org.opentripplanner.analyst.request.IsoChroneSPTRendererAccSampling;
+import org.opentripplanner.analyst.request.IsoChroneSPTRendererRecursiveGrid;
 import org.opentripplanner.analyst.request.Renderer;
 import org.opentripplanner.analyst.request.SPTCache;
 import org.opentripplanner.analyst.request.SampleFactory;
@@ -15,6 +17,7 @@ import org.opentripplanner.analyst.request.TileCache;
 import org.opentripplanner.api.resource.PlanGenerator;
 import org.opentripplanner.api.resource.services.MetadataService;
 import org.opentripplanner.graph_builder.GraphBuilderTask;
+import org.opentripplanner.graph_builder.impl.CongestionGraphBuilder;
 import org.opentripplanner.graph_builder.impl.EmbeddedConfigGraphBuilderImpl;
 import org.opentripplanner.graph_builder.impl.GtfsGraphBuilderImpl;
 import org.opentripplanner.graph_builder.impl.PruneFloatingIslands;
@@ -109,6 +112,8 @@ public class OTPConfigurator {
             cpf.bind(TileCache.class);
             cpf.bind(GeometryIndex.class);
             cpf.bind(SampleFactory.class);
+            cpf.bind(IsoChroneSPTRendererAccSampling.class);
+            cpf.bind(IsoChroneSPTRendererRecursiveGrid.class);
         }
         
         // Perform field injection on bound instances and call post-construct methods
@@ -199,7 +204,10 @@ public class OTPConfigurator {
             DefaultWayPropertySetSource defaultWayPropertySetSource = new DefaultWayPropertySetSource();
             osmBuilder.setDefaultWayPropertySetSource(defaultWayPropertySetSource);
             graphBuilder.addGraphBuilder(osmBuilder);
-            graphBuilder.addGraphBuilder(new PruneFloatingIslands());            
+            graphBuilder.addGraphBuilder(new PruneFloatingIslands());
+            if (params.congestionCsv != null) {
+                graphBuilder.addGraphBuilder(new CongestionGraphBuilder(params.congestionCsv));
+            }
         }
         if ( hasGTFS ) {
             List<GtfsBundle> gtfsBundles = Lists.newArrayList();

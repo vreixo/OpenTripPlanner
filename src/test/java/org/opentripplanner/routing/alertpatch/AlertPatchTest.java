@@ -25,7 +25,7 @@ import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.gtfs.GtfsContext;
 import org.opentripplanner.gtfs.GtfsLibrary;
-import org.opentripplanner.routing.algorithm.GenericAStar;
+import org.opentripplanner.routing.algorithm.AStar;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.edgetype.factory.GTFSPatternHopFactory;
@@ -42,7 +42,7 @@ public class AlertPatchTest extends TestCase {
 
     private RoutingRequest options;
 
-    private GenericAStar aStar = new GenericAStar();
+    private AStar aStar = new AStar();
 
     public void setUp() throws Exception {
         GtfsContext context = GtfsLibrary.readGtfs(new File(ConstantsForTests.FAKE_GTFS));
@@ -64,8 +64,8 @@ public class AlertPatchTest extends TestCase {
         snp1.setStop(new AgencyAndId("agency", "A"));
         snp1.apply(graph);
 
-        Vertex stop_a = graph.getVertex("agency_A");
-        Vertex stop_e = graph.getVertex("agency_E_arrive");
+        Vertex stop_a = graph.getVertex("agency:A");
+        Vertex stop_e = graph.getVertex("agency:E_arrive");
 
         ShortestPathTree spt;
         GraphPath optimizedPath, unoptimizedPath;
@@ -110,8 +110,8 @@ public class AlertPatchTest extends TestCase {
         snp1.setStop(new AgencyAndId("agency", "A"));
         snp1.apply(graph);
 
-        Vertex stop_a = graph.getVertex("agency_A");
-        Vertex stop_e = graph.getVertex("agency_E_arrive");
+        Vertex stop_a = graph.getVertex("agency:A");
+        Vertex stop_e = graph.getVertex("agency:E_arrive");
 
         ShortestPathTree spt;
         GraphPath path;
@@ -164,8 +164,8 @@ public class AlertPatchTest extends TestCase {
         rnp1.setRoute(new AgencyAndId("agency", "1"));
         rnp1.apply(graph);
 
-        Vertex stop_a = graph.getVertex("agency_A");
-        Vertex stop_e = graph.getVertex("agency_E_arrive");
+        Vertex stop_a = graph.getVertex("agency:A");
+        Vertex stop_e = graph.getVertex("agency:E_arrive");
 
         ShortestPathTree spt;
         GraphPath path;

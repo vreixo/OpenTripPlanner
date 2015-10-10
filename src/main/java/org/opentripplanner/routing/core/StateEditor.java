@@ -15,18 +15,15 @@ package org.opentripplanner.routing.core;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Set;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.Trip;
-import org.opentripplanner.routing.alertpatch.Alert;
 import org.opentripplanner.routing.automata.AutomatonState;
 import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
-import org.opentripplanner.routing.pathparser.PathParser;
 import org.opentripplanner.routing.trippattern.TripTimes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,9 +49,6 @@ public class StateEditor {
     private boolean defectiveTraversal = false;
 
     private boolean traversingBackward;
-    
-    // we use our own set of notes and only replace the child notes if they're different
-    private Set<Alert> notes = null;
 
     /* CONSTRUCTORS */
 
@@ -84,7 +78,7 @@ public class StateEditor {
                 // TODO LG: We disable this test: the assumption that
                 // the from and to vertex of an edge are not the same
                 // is not true anymore: bike rental on/off edges.
-                traversingBackward = parent.getOptions().isArriveBy();
+                traversingBackward = parent.getOptions().arriveBy;
                 child.vertex = e.getToVertex();
             } else if (parent.vertex.equals(e.getFromVertex())) {
                 traversingBackward = false;
@@ -100,7 +94,7 @@ public class StateEditor {
                 LOG.warn("   parent vertex: {}", parent.vertex);
                 defectiveTraversal = true;
             }
-            if (traversingBackward != parent.getOptions().isArriveBy()) {
+            if (traversingBackward != parent.getOptions().arriveBy) {
                 LOG.error("Actual traversal direction does not match traversal direction in TraverseOptions.");
                 defectiveTraversal = true;
             }
@@ -141,26 +135,17 @@ public class StateEditor {
                 return null;
             }
         }
-        if (!parsePath(this.child)) {
-            return null;
-        }
-
-        // copy the notes if need be, keeping in mind they may both be null
-        if (this.notes != child.stateData.notes) {
-            cloneStateDataAsNeeded();
-            child.stateData.notes = this.notes;
-        }
-        
         spawned = true;
         return child;
     }
 
     public boolean weHaveWalkedTooFar(RoutingRequest options) {
-        // Only apply limit in transit-only case
-        if (!options.getModes().isTransit())
-            return false;
+        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+        // walk limiting, in which case we want to cut off the search.
+        if (options.modes.isTransit() || !options.softWalkLimiting && options.batch)
+            return child.walkDistance >= options.maxWalkDistance;
 
-        return child.walkDistance >= options.maxWalkDistance;
+        return false;
     }
 
     public boolean isMaxPreTransitTimeExceeded(RoutingRequest options) {
@@ -199,30 +184,6 @@ public class StateEditor {
      */
     public void blockTraversal() {
         this.defectiveTraversal = true;
-    }
-
-    /**
-     * Add an alert to this state. This used to use an EdgeNarrative
-     */
-    public void addAlert(Alert notes) {
-        if (notes == null)
-            return;
-        
-        if (this.notes == null)
-            this.notes = new HashSet<Alert>();
-        
-        this.notes.add(notes);
-    }
-    
-    /**
-     * Convenience function to add multiple alerts
-     */
-    public void addAlerts(Iterable<Alert> alerts) {
-        if (alerts == null)
-            return;
-        for (Alert alert : alerts) {
-            this.addAlert(alert);
-        }
     }
 
     /* Incrementors */
@@ -301,6 +262,10 @@ public class StateEditor {
     public void setPreviousTrip(Trip previousTrip) {
         cloneStateDataAsNeeded();
         child.stateData.previousTrip = previousTrip;
+    }
+
+    public void setEnteredNoThroughTrafficArea() {
+        child.stateData.enteredNoThroughTrafficArea = true;
     }
     
     /**
@@ -407,6 +372,16 @@ public class StateEditor {
         }
     }
 
+    public void setBikeParked(boolean bikeParked) {
+        cloneStateDataAsNeeded();
+        child.stateData.bikeParked = bikeParked;
+        if (bikeParked) {
+            child.stateData.nonTransitMode = TraverseMode.WALK;
+        } else {
+            child.stateData.nonTransitMode = TraverseMode.BICYCLE;
+        }
+    }
+
     public void setPreviousStop(Stop previousStop) {
         cloneStateDataAsNeeded();
         child.stateData.previousStop = previousStop;
@@ -444,6 +419,7 @@ public class StateEditor {
         child.stateData.extensions = state.stateData.extensions;
         child.stateData.usingRentedBike = state.stateData.usingRentedBike;
         child.stateData.carParked = state.stateData.carParked;
+        child.stateData.bikeParked = state.stateData.bikeParked;
     }
 
     /* PUBLIC GETTER METHODS */
@@ -521,37 +497,6 @@ public class StateEditor {
             child.stateData = child.stateData.clone();
     }
 
-    /** return true if all PathParsers advanced to a state other than REJECT */
-    public boolean parsePath(State state) {
-        if (state.stateData.opt.rctx == null)
-            return true; // a lot of tests don't set a routing context
-        PathParser[] parsers = state.stateData.opt.rctx.pathParsers;
-        int[] parserStates = state.pathParserStates;
-        boolean accept = true;
-        boolean modified = false;
-        int i = 0;
-        for (PathParser parser : parsers) {
-            int terminal = parser.terminalFor(state);
-            int oldState = parserStates[i];
-            int newState = parser.transition(oldState, terminal);
-            if (newState != oldState) {
-                if (!modified) {
-                    // clone the state array so only the new state will see modifications
-                    parserStates = parserStates.clone();
-                    modified = true;
-                }
-                parserStates[i] = newState;
-                if (newState == AutomatonState.REJECT)
-                    accept = false;
-            }
-            i++;
-        }
-        if (modified)
-            state.pathParserStates = parserStates;
-
-        return accept;
-    }
-
     public void alightTransit() {
         cloneStateDataAsNeeded();
         child.stateData.lastTransitWalk = child.getWalkDistance();
@@ -575,4 +520,9 @@ public class StateEditor {
         cloneStateDataAsNeeded();
         child.stateData.bikeRentalNetworks = networks;
     }
+
+    public boolean hasEnteredNoThroughTrafficArea() {
+        return child.hasEnteredNoThruTrafficArea();
+    }
+
 }

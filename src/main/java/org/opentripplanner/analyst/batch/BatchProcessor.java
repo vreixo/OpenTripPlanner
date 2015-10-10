@@ -13,7 +13,6 @@
 
 package org.opentripplanner.analyst.batch;
 
-import java.io.IOException;
 import java.util.TimeZone;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
@@ -21,18 +20,14 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.annotation.Resource;
-
-import lombok.Setter;
-
 import org.opentripplanner.analyst.batch.aggregator.Aggregator;
 import org.opentripplanner.analyst.core.Sample;
 import org.opentripplanner.analyst.request.SampleFactory;
 import org.opentripplanner.common.model.GenericLocation;
+import org.opentripplanner.routing.algorithm.AStar;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.error.VertexNotFoundException;
 import org.opentripplanner.routing.services.GraphService;
-import org.opentripplanner.routing.services.SPTService;
 import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,17 +38,16 @@ public class BatchProcessor {
     private static final String EXAMPLE_CONTEXT = "batch-context.xml";
     
     private GraphService graphService;
-    private SPTService sptService;
     private SampleFactory sampleFactory;
 
-    @Setter private Population origins;
-    @Setter private Population destinations;
-    @Setter private RoutingRequest prototypeRoutingRequest;
+    private Population origins;
+    private Population destinations;
+    private RoutingRequest prototypeRoutingRequest;
 
-    @Setter private Aggregator aggregator;
-    @Setter private Accumulator accumulator;
-    @Setter private int logThrottleSeconds = 4;    
-    @Setter private int searchCutoffSeconds = -1;
+    private Aggregator aggregator;
+    private Accumulator accumulator;
+    private int logThrottleSeconds = 4;    
+    private int searchCutoffSeconds = -1;
     
     /**
      * Empirical results for a 4-core processor (with 8 fake hyperthreading cores):
@@ -62,13 +56,13 @@ public class BatchProcessor {
      * The default value includes the hyperthreading cores, so you may want to set nThreads 
      * manually in your IoC XML. 
      */
-    @Setter private int nThreads = Runtime.getRuntime().availableProcessors(); 
+    private int nThreads = Runtime.getRuntime().availableProcessors(); 
 
-    @Setter private String date = "2011-02-04";
-    @Setter private String time = "08:00 AM";
-    @Setter private TimeZone timeZone = TimeZone.getDefault();
-    @Setter private String outputPath = "/tmp/analystOutput";
-    @Setter private float checkpointIntervalMinutes = -1;
+    private String date = "2011-02-04";
+    private String time = "08:00 AM";
+    private TimeZone timeZone = TimeZone.getDefault();
+    private String outputPath = "/tmp/analystOutput";
+    private float checkpointIntervalMinutes = -1;
     
     enum Mode { BASIC, AGGREGATE, ACCUMULATE };
     private Mode mode;
@@ -200,11 +194,11 @@ public class BatchProcessor {
         GenericLocation latLon = new GenericLocation(i.lat, i.lon);
         req.batch = true;
         if (req.arriveBy)
-            req.setTo(latLon);
+            req.to = latLon;
         else
-            req.setFrom(latLon);
+            req.from = latLon;
         try {
-            req.setRoutingContext(graphService.getGraph(req.routerId));
+            req.setRoutingContext(graphService.getRouter(req.routerId).graph);
             return req;
         } catch (VertexNotFoundException vnfe) {
             LOG.debug("no vertex could be created near the origin point");
@@ -251,7 +245,7 @@ public class BatchProcessor {
             LOG.debug("calling origin : {}", oi);
             RoutingRequest req = buildRequest(oi);
             if (req != null) {
-                ShortestPathTree spt = sptService.getShortestPathTree(req);
+                ShortestPathTree spt = new AStar().getShortestPathTree(req);
                 // ResultSet should be a local to avoid memory leak
                 ResultSet results = ResultSet.forTravelTimes(destinations, spt);
                 req.cleanup();

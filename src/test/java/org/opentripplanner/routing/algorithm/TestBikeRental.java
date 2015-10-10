@@ -19,16 +19,13 @@ import java.util.Set;
 
 import junit.framework.TestCase;
 
-import org.opentripplanner.api.parameter.QualifiedModeSetSequence;
+import org.opentripplanner.api.parameter.QualifiedModeSet;
 import org.opentripplanner.common.geometry.GeometryUtils;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.TraverseModeSet;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
-import org.opentripplanner.routing.edgetype.RentABikeOffEdge;
-import org.opentripplanner.routing.edgetype.RentABikeOnEdge;
-import org.opentripplanner.routing.edgetype.StreetBikeRentalLink;
-import org.opentripplanner.routing.edgetype.StreetTraversalPermission;
+import org.opentripplanner.routing.edgetype.*;
+import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.spt.GraphPath;
@@ -36,6 +33,7 @@ import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.opentripplanner.routing.vertextype.BikeRentalStationVertex;
 import org.opentripplanner.routing.vertextype.IntersectionVertex;
 import org.opentripplanner.routing.vertextype.StreetVertex;
+import org.opentripplanner.util.NonLocalizedString;
 
 public class TestBikeRental extends TestCase {
     public void testBasic() throws Exception {
@@ -46,14 +44,14 @@ public class TestBikeRental extends TestCase {
         StreetVertex v3 = new IntersectionVertex(graph, "v3", -77.0492, 38.858, "v3");
 
         @SuppressWarnings("unused")
-        Edge walk = new PlainStreetEdge(v1, v2, GeometryUtils.makeLineString(-77.0492, 38.856,
+        Edge walk = new StreetEdge(v1, v2, GeometryUtils.makeLineString(-77.0492, 38.856,
                 -77.0492, 38.857), "S. Crystal Dr", 87, StreetTraversalPermission.PEDESTRIAN, false);
 
         @SuppressWarnings("unused")
-        Edge mustBike = new PlainStreetEdge(v2, v3, GeometryUtils.makeLineString(-77.0492, 38.857,
+        Edge mustBike = new StreetEdge(v2, v3, GeometryUtils.makeLineString(-77.0492, 38.857,
                 -77.0492, 38.858), "S. Crystal Dr", 87, StreetTraversalPermission.BICYCLE, false);
 
-        GenericAStar aStar = new GenericAStar();
+        AStar aStar = new AStar();
 
         // it is impossible to get from v1 to v3 by walking
         RoutingRequest options = new RoutingRequest(new TraverseModeSet("WALK,TRANSIT"));
@@ -75,7 +73,7 @@ public class TestBikeRental extends TestCase {
         // so we add a bike share
         BikeRentalStation station = new BikeRentalStation();
         station.id = "id";
-        station.name = "station";
+        station.name = new NonLocalizedString("station");
         station.x = -77.049;
         station.y = 36.856;
         station.bikesAvailable = 5;
@@ -99,7 +97,7 @@ public class TestBikeRental extends TestCase {
 
         BikeRentalStation station2 = new BikeRentalStation();
         station2.id = "id2";
-        station2.name = "station2";
+        station2.name = new NonLocalizedString("station2");
         station2.x = -77.049;
         station2.y = 36.857;
         station2.bikesAvailable = 5;
@@ -112,7 +110,7 @@ public class TestBikeRental extends TestCase {
 
         // now we succeed!
         options = new RoutingRequest();
-        new QualifiedModeSetSequence("BICYCLE_RENT,TRANSIT").applyToRequest(options);
+        new QualifiedModeSet("BICYCLE_RENT,TRANSIT").applyToRoutingRequest(options);
         options.setRoutingContext(graph, v1, v3);
         tree = aStar.getShortestPathTree(options);
 

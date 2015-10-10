@@ -31,6 +31,10 @@ public class OSMWay extends OSMWithTags {
         _nodes.add(nodeRef);
     }
 
+    public void addNodeRef(long nodeRef, int index) {
+        _nodes.add(index, nodeRef);
+    }
+
     public List<Long> getNodeRefs() {
         return _nodes;
     }
@@ -102,6 +106,24 @@ public class OSMWay extends OSMWithTags {
      */
     public boolean isOneWayReverseBicycle() {
         return "-1".equals(getTag("oneway:bicycle"));
+    }
+
+    /**
+     * Returns true if bikes must use sidepath in forward direction
+     * 
+     * @return 
+     */
+    public boolean isForwardDirectionSidepath() {
+        return "use_sidepath".equals(getTag("bicycle:forward"));
+    }
+
+    /**
+     * Returns true if bikes must use sidepath in reverse direction
+     * 
+     * @return 
+     */
+    public boolean isReverseDirectionSidepath() {
+        return "use_sidepath".equals(getTag("bicycle:backward"));
     }
 
     /**

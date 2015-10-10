@@ -1,14 +1,6 @@
 package org.opentripplanner.analyst.batch;
 
-import java.io.File;
-
-import lombok.Setter;
-
-import org.geotools.coverage.grid.GridCoordinates2D;
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridCoverageFactory;
-import org.geotools.coverage.grid.GridEnvelope2D;
-import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.coverage.grid.*;
 import org.geotools.coverage.grid.io.AbstractGridCoverage2DReader;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridFormatFinder;
@@ -25,6 +17,8 @@ import org.opengis.referencing.operation.MathTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+
 /**
  * Individuals should be in a random-access-friendly List implementation in row-major order
  */
@@ -33,10 +27,10 @@ public class RasterPopulation extends BasicPopulation {
     private static final Logger LOG = LoggerFactory.getLogger(RasterPopulation.class);
 
     /* configuration fields */
-    @Setter int rows = 200, cols = 200; // these are the raster (gridEnvelope) dimensions
-    @Setter double left, right, top, bottom; // bounding box values in CRS
-    @Setter int band = 0; // raster band to read
-    @Setter double unitySeconds = 0; // scale output values so unity=1. 0 to turn off. 
+    public int rows = 200, cols = 200; // these are the raster (gridEnvelope) dimensions
+    public double left, right, top, bottom; // bounding box values in CRS
+    public int band = 0; // raster band to read
+    public double unitySeconds = 0; // scale output values so unity=1. 0 to turn off. 
     
     /* derived fields */
     protected CoordinateReferenceSystem coverageCRS; // from input raster or config string
@@ -77,8 +71,7 @@ public class RasterPopulation extends BasicPopulation {
             GeoTiffWriter writer = new GeoTiffWriter(new File(fileName));
             writer.write(coverage, (GeneralParameterValue[]) params.values().toArray(new GeneralParameterValue[1]));
         } catch (Exception e) {
-            LOG.error("exception while writing geotiff.");
-            e.printStackTrace();
+            LOG.error("exception while writing geotiff.", e);
         }
         LOG.info("done writing geotiff.");
     }
@@ -114,8 +107,7 @@ public class RasterPopulation extends BasicPopulation {
             final CoordinateReferenceSystem WGS84 = CRS.decode("EPSG:4326", true);
             tr = CRS.findMathTransform(coverageCRS, WGS84);
         } catch (Exception e) {
-            LOG.equals("error creating CRS transform.");
-            e.printStackTrace();
+            LOG.error("error creating CRS transform.", e);
             return;
         }
         // grid coordinate object to be reused for reading each cell in the raster
@@ -144,8 +136,7 @@ public class RasterPopulation extends BasicPopulation {
                     Individual individual = new Individual(label, lon, lat, val[band]);
                     this.addIndividual(individual);
                 } catch (Exception e) {
-                    LOG.error("error creating individuals for raster");
-                    e.printStackTrace();
+                    LOG.error("error creating individuals for raster", e);
                     return;
                 }
             }

@@ -13,17 +13,16 @@
 
 package org.opentripplanner.updater.alerts;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.opentripplanner.routing.alertpatch.Alert;
 import org.opentripplanner.routing.alertpatch.AlertPatch;
 import org.opentripplanner.routing.alertpatch.TimePeriod;
-import org.opentripplanner.routing.alertpatch.TranslatedString;
 import org.opentripplanner.routing.services.AlertPatchService;
+import org.opentripplanner.util.I18NString;
+import org.opentripplanner.util.TranslatedString;
+import org.opentripplanner.updater.GtfsRealtimeFuzzyTripMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +31,7 @@ import com.google.transit.realtime.GtfsRealtime.EntitySelector;
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 import com.google.transit.realtime.GtfsRealtime.TimeRange;
+import com.google.transit.realtime.GtfsRealtime.TripDescriptor;
 
 /**
  * This updater only includes GTFS-Realtime Service Alert feeds.
@@ -49,6 +49,9 @@ public class AlertsUpdateHandler {
 
     /** How long before the posted start of an event it should be displayed to users */
     private long earlyStart;
+
+    /** Set only if we should attempt to match the trip_id from other data in TripDescriptor */
+    private GtfsRealtimeFuzzyTripMatcher fuzzyTripMatcher;
 
     public void update(FeedMessage message) {
         alertPatchService.expire(patchIds);
@@ -89,12 +92,25 @@ public class AlertsUpdateHandler {
             periods.add(new TimePeriod(0, Long.MAX_VALUE));
         }
         for (EntitySelector informed : alert.getInformedEntityList()) {
+            if (fuzzyTripMatcher != null && informed.hasTrip()) {
+                String agency = informed.hasAgencyId() ? informed.getAgencyId() : defaultAgencyId;
+                TripDescriptor trip = fuzzyTripMatcher.match(agency, informed.getTrip());
+                informed = informed.toBuilder().setTrip(trip).build();
+            }
             String patchId = createId(id, informed);
 
             String routeId = null;
             if (informed.hasRouteId()) {
                 routeId = informed.getRouteId();
             }
+
+            int direction;
+            if (informed.hasTrip() && informed.getTrip().hasDirectionId()) {
+                direction = informed.getTrip().getDirectionId();
+            } else {
+                direction = -1;
+            }
+
             // TODO: The other elements of a TripDescriptor are ignored...
             String tripId = null;
             if (informed.hasTrip() && informed.getTrip().hasTripId()) {
@@ -120,6 +136,10 @@ public class AlertsUpdateHandler {
             AlertPatch patch = new AlertPatch();
             if (routeId != null) {
                 patch.setRoute(new AgencyAndId(agencyId, routeId));
+                // Makes no sense to set direction if we don't have a route
+                if (direction != -1) {
+                    patch.setDirectionId(direction);
+                }
             }
             if (tripId != null) {
                 patch.setTrip(new AgencyAndId(agencyId, tripId));
@@ -144,9 +164,12 @@ public class AlertsUpdateHandler {
         return id + " "
             + (informed.hasAgencyId  () ? informed.getAgencyId  () : " null ") + " "
             + (informed.hasRouteId   () ? informed.getRouteId   () : " null ") + " "
+            + (informed.hasTrip() && informed.getTrip().hasDirectionId() ?
+                informed.getTrip().hasDirectionId() : " null ") + " "
             + (informed.hasRouteType () ? informed.getRouteType () : " null ") + " "
             + (informed.hasStopId    () ? informed.getStopId    () : " null ") + " "
-            + (informed.hasTrip() ? informed.getTrip().getTripId() : " null ");
+            + (informed.hasTrip() && informed.getTrip().hasTripId() ?
+                informed.getTrip().getTripId() : " null ");
     }
 
     /**
@@ -154,14 +177,14 @@ public class AlertsUpdateHandler {
      *
      * @return A TranslatedString containing the same information as the input
      */
-    private TranslatedString deBuffer(GtfsRealtime.TranslatedString input) {
-        TranslatedString result = new TranslatedString();
+    private I18NString deBuffer(GtfsRealtime.TranslatedString input) {
+        Map<String, String> translations = new HashMap<>();
         for (GtfsRealtime.TranslatedString.Translation translation : input.getTranslationList()) {
             String language = translation.getLanguage();
             String string = translation.getText();
-            result.addTranslation(language, string);
+            translations.put(language, string);
         }
-        return result;
+        return translations.isEmpty() ? null : TranslatedString.getI18NString(translations);
     }
 
     public void setDefaultAgencyId(String defaultAgencyId) {
@@ -179,5 +202,9 @@ public class AlertsUpdateHandler {
 
     public void setEarlyStart(long earlyStart) {
         this.earlyStart = earlyStart;
+    }
+
+    public void setFuzzyTripMatcher(GtfsRealtimeFuzzyTripMatcher fuzzyTripMatcher) {
+        this.fuzzyTripMatcher = fuzzyTripMatcher;
     }
 }

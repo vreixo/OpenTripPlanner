@@ -28,16 +28,17 @@ import javax.xml.parsers.ParserConfigurationException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.opentripplanner.updater.PreferencesConfigurable;
+import org.opentripplanner.updater.JsonConfigurable;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.util.HttpUtils;
+import org.opentripplanner.util.NonLocalizedString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 // TODO This class could probably inherit from GenericJSONBikeRentalDataSource
-public class CityBikesBikeRentalDataSource implements BikeRentalDataSource, PreferencesConfigurable {
+public class CityBikesBikeRentalDataSource implements BikeRentalDataSource, JsonConfigurable {
 
     private static final Logger log = LoggerFactory.getLogger(BixiBikeRentalDataSource.class);
 
@@ -90,12 +91,16 @@ public class CityBikesBikeRentalDataSource implements BikeRentalDataSource, Pref
         ObjectMapper mapper = new ObjectMapper();
         for (JsonNode stationNode : mapper.readTree(data)) {
             BikeRentalStation brStation = new BikeRentalStation();
-            brStation.id = stationNode.get("id").textValue();
+            // We need string IDs but they are in JSON as numbers. Avoid null from textValue(). See pull req #1450.
+            brStation.id = String.valueOf(stationNode.get("id").intValue());
             brStation.x = stationNode.get("lng").doubleValue() / 1000000.0;
             brStation.y = stationNode.get("lat").doubleValue() / 1000000.0;
-            brStation.name = stationNode.get("name").textValue();
+            brStation.name = new NonLocalizedString(stationNode.get("name").textValue());
             brStation.bikesAvailable = stationNode.get("bikes").intValue();
             brStation.spacesAvailable = stationNode.get("free").intValue();
+            if (brStation != null && brStation.id != null) {
+                out.add(brStation);
+            }
         }
         synchronized (this) {
             stations = out;
@@ -121,10 +126,11 @@ public class CityBikesBikeRentalDataSource implements BikeRentalDataSource, Pref
     }
     
     @Override
-    public void configure(Graph graph, Preferences preferences) {
-        String url = preferences.get("url", null);
-        if (url == null)
+    public void configure(Graph graph, JsonNode config) {
+        String url = config.path("url").asText();
+        if (url == null) {
             throw new IllegalArgumentException("Missing mandatory 'url' configuration.");
+        }
         setUrl(url);
     }
 

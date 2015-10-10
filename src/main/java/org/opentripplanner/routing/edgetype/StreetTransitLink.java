@@ -26,6 +26,7 @@ import org.opentripplanner.routing.vertextype.TransitStop;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
+import java.util.Locale;
 
 /** 
  * This represents the connection between a street vertex and a transit vertex
@@ -74,11 +75,39 @@ public class StreetTransitLink extends Edge {
         return "street transit link";
     }
 
+    @Override
+    public String getName(Locale locale) {
+        //TODO: localize
+        return this.getName();
+    }
+
     public State traverse(State s0) {
+
+        // Forbid taking shortcuts composed of two street-transit links in a row. Also avoids spurious leg transitions.
+        if (s0.backEdge instanceof StreetTransitLink) {
+            return null;
+        }
+
+        // Do not re-enter the street network following a transfer.
+        // FIXME this is a serious problem: transfer result state can dominate arrivals at a stop on a vehicle and prune the tree!
+        if (s0.backEdge instanceof SimpleTransfer) {
+            return null;
+        }
+
         RoutingRequest req = s0.getOptions();
         if (s0.getOptions().wheelchairAccessible && !wheelchairAccessible) {
             return null;
         }
+        if (s0.getOptions().bikeParkAndRide && !s0.isBikeParked()) {
+            // Forbid taking your own bike in the station if bike P+R activated.
+            return null;
+        }
+        if (s0.isBikeRenting()) {
+            // Forbid taking a rented bike on any transit.
+            // TODO Check this condition, does this always make sense?
+            return null;
+        }
+
         // Do not check here whether any transit modes are selected. A check for the presence of
         // transit modes will instead be done in the following PreBoard edge.
         // This allows searching for nearby transit stops using walk-only options.

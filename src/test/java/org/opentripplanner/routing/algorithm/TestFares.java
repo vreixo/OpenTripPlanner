@@ -13,10 +13,7 @@
 
 package org.opentripplanner.routing.algorithm;
 
-import java.io.File;
-
 import junit.framework.TestCase;
-
 import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.gtfs.GtfsContext;
@@ -28,15 +25,16 @@ import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.WrappedCurrency;
 import org.opentripplanner.routing.edgetype.factory.GTFSPatternHopFactory;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.impl.StreetVertexIndexServiceImpl;
 import org.opentripplanner.routing.services.FareService;
 import org.opentripplanner.routing.spt.GraphPath;
 import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.opentripplanner.util.TestUtils;
 
+import java.io.File;
+
 public class TestFares extends TestCase {
 
-    private GenericAStar aStar = new GenericAStar();
+    private AStar aStar = new AStar();
     
     public void testBasic() throws Exception {
 
@@ -48,12 +46,12 @@ public class TestFares extends TestCase {
         RoutingRequest options = new RoutingRequest();
         long startTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 8, 7, 12, 0, 0);
         options.dateTime = startTime;
-        options.setRoutingContext(gg, "Caltrain_Millbrae Caltrain", "Caltrain_Mountain View Caltrain");
+        options.setRoutingContext(gg, "Caltrain:Millbrae Caltrain", "Caltrain:Mountain View Caltrain");
         ShortestPathTree spt;
         GraphPath path = null;
         spt = aStar.getShortestPathTree(options);
 
-        path = spt.getPath(gg.getVertex("Caltrain_Mountain View Caltrain"), true);
+        path = spt.getPath(gg.getVertex("Caltrain:Mountain View Caltrain"), true);
 
         FareService fareService = gg.getService(FareService.class);
         
@@ -65,17 +63,15 @@ public class TestFares extends TestCase {
 
         Graph gg = ConstantsForTests.getInstance().getPortlandGraph();
         RoutingRequest options = new RoutingRequest();
-        StreetVertexIndexServiceImpl index = new StreetVertexIndexServiceImpl(gg);
-        index.setup();
         ShortestPathTree spt;
         GraphPath path = null;
         long startTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 12, 0, 0);
         options.dateTime = startTime;
-        options.setRoutingContext(gg, "TriMet_10579", "TriMet_8371");
+        options.setRoutingContext(gg, "TriMet:10579", "TriMet:8371");
         // from zone 3 to zone 2
         spt = aStar.getShortestPathTree(options);
 
-        path = spt.getPath(gg.getVertex("TriMet_8371"), true);
+        path = spt.getPath(gg.getVertex("TriMet:8371"), true);
         assertNotNull(path);
 
         FareService fareService = gg.getService(FareService.class);
@@ -86,10 +82,10 @@ public class TestFares extends TestCase {
 
         startTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 14, 0, 0);
         options.dateTime = startTime;
-        options.setRoutingContext(gg, "TriMet_8389", "TriMet_1252");
+        options.setRoutingContext(gg, "TriMet:8389", "TriMet:1252");
         spt = aStar.getShortestPathTree(options);
 
-        path = spt.getPath(gg.getVertex("TriMet_1252"), true);
+        path = spt.getPath(gg.getVertex("TriMet:1252"), true);
         assertNotNull(path);
         cost = fareService.getCost(path);
         
@@ -99,10 +95,10 @@ public class TestFares extends TestCase {
         options.maxTransfers = 5;
         startTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 14, 0, 0);
         options.dateTime = startTime;
-        options.setRoutingContext(gg, "TriMet_10428", "TriMet_4231");
+        options.setRoutingContext(gg, "TriMet:10428", "TriMet:4231");
         spt = aStar.getShortestPathTree(options);
 
-        path = spt.getPath(gg.getVertex("TriMet_4231"), true);
+        path = spt.getPath(gg.getVertex("TriMet:4231"), true);
         assertNotNull(path);
         cost = fareService.getCost(path);
         //

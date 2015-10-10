@@ -16,7 +16,7 @@ package org.opentripplanner.updater.stoptime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.prefs.Preferences;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.updater.GraphUpdater;
@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.transit.realtime.GtfsRealtime;
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 import com.google.transit.realtime.GtfsRealtime.TripUpdate;
@@ -71,9 +72,9 @@ public class WebsocketGtfsRealtimeUpdater implements GraphUpdater {
     private String url;
 
     /**
-     * Default agency id that is used for the trip ids in the TripUpdates
+     * The ID for the static feed to which these TripUpdates are applied
      */
-    private String agencyId;
+    private String feedId;
 
     /**
      * The number of seconds to wait before reconnecting after a failed connection.
@@ -86,11 +87,10 @@ public class WebsocketGtfsRealtimeUpdater implements GraphUpdater {
     }
 
     @Override
-    public void configure(Graph graph, Preferences preferences) throws Exception {
-        // Read configuration
-        url = preferences.get("url", null);
-        agencyId = preferences.get("defaultAgencyId", "");
-        reconnectPeriodSec = preferences.getInt("reconnectPeriodSec", DEFAULT_RECONNECT_PERIOD_SEC);
+    public void configure(Graph graph, JsonNode config) throws Exception {
+        url = config.path("url").asText();
+        feedId = config.path("feedId").asText("");
+        reconnectPeriodSec = config.path("reconnectPeriodSec").asInt(DEFAULT_RECONNECT_PERIOD_SEC);
     }
 
     @Override
@@ -100,10 +100,10 @@ public class WebsocketGtfsRealtimeUpdater implements GraphUpdater {
             @Override
             public void run(Graph graph) {
                 // Only create a realtime data snapshot source if none exists already
-                if (graph.getTimetableSnapshotSource() == null) {
+                if (graph.timetableSnapshotSource == null) {
                     TimetableSnapshotSource snapshotSource = new TimetableSnapshotSource(graph);
                     // Add snapshot source to graph
-                    graph.setTimetableSnapshotSource(snapshotSource);
+                    graph.timetableSnapshotSource = (snapshotSource);
                 }
             }
         });
@@ -173,22 +173,35 @@ public class WebsocketGtfsRealtimeUpdater implements GraphUpdater {
             FeedMessage feedMessage = null;
             List<FeedEntity> feedEntityList = null;
             List<TripUpdate> updates = null;
+            boolean fullDataset = true;
             try {
-                // Decode message into List of TripUpdates
+                // Decode message
                 feedMessage = FeedMessage.PARSER.parseFrom(message);
                 feedEntityList = feedMessage.getEntityList();
+                
+                // Change fullDataset value if this is an incremental update
+                if (feedMessage.hasHeader()
+                        && feedMessage.getHeader().hasIncrementality()
+                        && feedMessage.getHeader().getIncrementality()
+                                .equals(GtfsRealtime.FeedHeader.Incrementality.DIFFERENTIAL)) {
+                    fullDataset = false;
+                }
+                
+                // Create List of TripUpdates
                 updates = new ArrayList<TripUpdate>(feedEntityList.size());
                 for (FeedEntity feedEntity : feedEntityList) {
-                    if (feedEntity.hasTripUpdate()) updates.add(feedEntity.getTripUpdate());
+                    if (feedEntity.hasTripUpdate()) {
+                        updates.add(feedEntity.getTripUpdate());
+                    }
                 }
             } catch (InvalidProtocolBufferException e) {
                 LOG.error("Could not decode gtfs-rt message:", e);
             }
 
-            if (updates != null && updates.size() > 0) {
+            if (updates != null) {
                 // Handle trip updates via graph writer runnable
-                TripUpdateGraphWriterRunnable runnable =
-                        new TripUpdateGraphWriterRunnable(updates, agencyId);
+                TripUpdateGraphWriterRunnable runnable = new TripUpdateGraphWriterRunnable(
+                        fullDataset, updates, feedId);
                 updaterManager.execute(runnable);
             }
         }

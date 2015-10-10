@@ -13,12 +13,11 @@
 
 package org.opentripplanner.common.model;
 
+import java.io.Serializable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.vividsolutions.jts.geom.Coordinate;
-
-import lombok.Data;
 
 /**
  * Class describing a location provided by clients of routing. Used to describe end points (origin, destination) of a routing request as well as any
@@ -28,30 +27,29 @@ import lombok.Data;
  * 
  * @author avi
  */
-@Data
-public class GenericLocation implements Cloneable {
+public class GenericLocation implements Cloneable, Serializable {
 
     /**
      * The name of the place, if provided.
      */
-    private final String name;
+    public final String name;
 
     /**
      * The identifier of the place, if provided. May be a lat,lng string or a vertex ID.
      */
-    private final String place;
+    public final String place;
     
     /**
      * The ID of the edge this location is on if any.
      */
-    private Integer edgeId;
+    public Integer edgeId;
 
     /**
      * Coordinates of the place, if provided.
      */
-    private Double lat;
+    public Double lat;
 
-    private Double lng;
+    public Double lng;
     
     /**
      * Observed heading if any.
@@ -62,7 +60,7 @@ public class GenericLocation implements Cloneable {
      * 0      = heading true north.
      * +/-180 = heading south.
      */
-    private Double heading;
+    public Double heading;
 
     // Pattern for matching lat,lng strings, i.e. an optional '-' character followed by 
     // one or more digits, and an optional (decimal point followed by one or more digits).

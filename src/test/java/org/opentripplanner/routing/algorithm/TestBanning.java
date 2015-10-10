@@ -13,14 +13,7 @@
 
 package org.opentripplanner.routing.algorithm;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-
 import junit.framework.TestCase;
-
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
 import org.opentripplanner.ConstantsForTests;
@@ -36,17 +29,19 @@ import org.opentripplanner.routing.spt.GraphPath;
 import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.opentripplanner.util.TestUtils;
 
+import java.util.*;
+
 public class TestBanning extends TestCase {
 
-    GenericAStar aStar = new GenericAStar();
+    AStar aStar = new AStar();
 
     public void testBannedRoutes() {
 
         Graph graph = ConstantsForTests.getInstance().getPortlandGraph();
 
         RoutingRequest options = new RoutingRequest();
-        Vertex start = graph.getVertex("TriMet_8371");
-        Vertex end = graph.getVertex("TriMet_8374");
+        Vertex start = graph.getVertex("TriMet:8371");
+        Vertex end = graph.getVertex("TriMet:8374");
         options.dateTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 12, 34, 25);
         // must set routing context _after_ options is fully configured (time)
         options.setRoutingContext(graph, start, end);
@@ -63,13 +58,13 @@ public class TestBanning extends TestCase {
             String lineId = maxLines[i][1];
             String routeSpecStr = "TriMet_" + (lineName != null ? lineName : "")
                     + (lineId != null ? "_" + lineId : "");
-            options.setBannedRoutes(routeSpecStr);
+                options.setBannedRoutes(routeSpecStr);
             spt = aStar.getShortestPathTree(options);
             GraphPath path = spt.getPath(end, true);
             for (State s : path.states) {
                 if (s.getBackEdge() instanceof PatternHop) {
                     PatternHop e = (PatternHop) s.getBackEdge();
-                    Route route = e.getPattern().getRoute();
+                    Route route = e.getPattern().route;
                     assertFalse(options.bannedRoutes.matches(route));
                     boolean foundMaxLine = false;
                     for (int j = 0; j < maxLines.length; ++j) {
@@ -111,18 +106,16 @@ public class TestBanning extends TestCase {
 
         for (int i = 0; i < 20; i++) {
             RoutingRequest options = new RoutingRequest();
-            options.dateTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 12, 34,
-                    25);
+            options.dateTime = TestUtils.dateInSeconds("America/Los_Angeles", 2009, 11, 1, 12, 34, 25);
             // Pick two random locations
             Vertex start = null;
             Vertex end = null;
             while (start == null)
-                start = graph.getVertex("TriMet_" + rand.nextInt(10000));
+                start = graph.getVertex("TriMet:" + rand.nextInt(10000));
             while (end == null)
-                end = graph.getVertex("TriMet_" + rand.nextInt(10000));
+                end = graph.getVertex("TriMet:" + rand.nextInt(10000));
             options.setRoutingContext(graph, start, end);
             ShortestPathTree spt = null;
-
             int n = rand.nextInt(5) + 3;
             for (int j = 0; j < n; j++) {
                 spt = aStar.getShortestPathTree(options);
@@ -149,9 +142,9 @@ public class TestBanning extends TestCase {
                 }
                 // Used trips should not contains a banned trip
                 for (T2<AgencyAndId, BannedStopSet> usedTripDef : usedTripDefs) {
-                    BannedStopSet bannedStopSet = options.bannedTrips.get(usedTripDef.getFirst());
+                    BannedStopSet bannedStopSet = options.bannedTrips.get(usedTripDef.first);
                     if (bannedStopSet != null) {
-                        for (Integer stopIndex : usedTripDef.getSecond()) {
+                        for (Integer stopIndex : usedTripDef.second) {
                             assertFalse(bannedStopSet.contains(stopIndex));
                         }
                     }
@@ -163,7 +156,7 @@ public class TestBanning extends TestCase {
                         usedTripDefs);
                 T2<AgencyAndId, BannedStopSet> tripDefToBan = usedTripDefsList.get(rand
                         .nextInt(usedTripDefs.size()));
-                options.bannedTrips.put(tripDefToBan.getFirst(), tripDefToBan.getSecond());
+                options.bannedTrips.put(tripDefToBan.first, tripDefToBan.second);
             }
             options.bannedTrips.clear();
         }

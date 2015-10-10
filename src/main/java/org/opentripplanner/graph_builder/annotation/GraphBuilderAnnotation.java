@@ -14,6 +14,7 @@
 package org.opentripplanner.graph_builder.annotation;
 
 import java.io.Serializable;
+import org.opentripplanner.graph_builder.AnnotationsToHTML;
 
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
@@ -33,6 +34,9 @@ import org.slf4j.LoggerFactory;
  * only accept strings. Thus, a static register method on this class that creates an annotation, adds it to a graph, and returns a message string for
  * that annotation.
  * 
+ * {@link #getHTMLMessage() } is used in {@link AnnotationsToHTML} to create HTML annotations.
+ * It is useful to put links to OSM in annotations.
+ * 
  * @author andrewbyrd
  */
 public abstract class GraphBuilderAnnotation implements Serializable {
@@ -49,6 +53,10 @@ public abstract class GraphBuilderAnnotation implements Serializable {
     }
 
     public abstract String getMessage();
+
+    public String getHTMLMessage() {
+        return this.getMessage().replace("<", "&lt;").replace(">", "&gt;");
+    }
 
     public Edge getReferencedEdge() {
         return null;

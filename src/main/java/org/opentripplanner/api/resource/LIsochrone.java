@@ -28,13 +28,12 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import lombok.AllArgsConstructor;
-
+import org.geotools.data.DefaultTransaction;
+import org.geotools.data.Transaction;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureStore;
@@ -46,11 +45,10 @@ import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opentripplanner.analyst.core.IsochroneData;
 import org.opentripplanner.analyst.request.IsoChroneRequest;
-import org.opentripplanner.analyst.request.IsoChroneSPTRendererAccSampling;
-import org.opentripplanner.analyst.request.IsoChroneSPTRendererRecursiveGrid;
 import org.opentripplanner.api.common.RoutingResource;
 import org.opentripplanner.common.model.GenericLocation;
 import org.opentripplanner.routing.core.RoutingRequest;
+import org.opentripplanner.standalone.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,12 +71,6 @@ public class LIsochrone extends RoutingResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(LIsochrone.class);
 
-    @Context // FIXME inject Application context
-    private IsoChroneSPTRendererAccSampling accSamplingRenderer;
-
-    @Context // FIXME inject Application context
-    private IsoChroneSPTRendererRecursiveGrid recursiveGridRenderer;
-
     @QueryParam("cutoffSec")
     private List<Integer> cutoffSecList;
 
@@ -88,12 +80,13 @@ public class LIsochrone extends RoutingResource {
     @QueryParam("debug")
     private Boolean debug;
 
-    @QueryParam("algorithm")
-    private String algorithm;
-
     @QueryParam("precisionMeters")
     @DefaultValue("200")
     private Integer precisionMeters;
+
+    @QueryParam("offRoadDistanceMeters")
+    @DefaultValue("150")
+    private Integer offRoadDistanceMeters;
 
     @QueryParam("coordinateOrigin")
     private String coordinateOrigin = null;
@@ -124,8 +117,18 @@ public class LIsochrone extends RoutingResource {
         LOG.debug("writing out shapefile {}", shapeFile);
         ShapefileDataStore outStore = new ShapefileDataStore(shapeFile.toURI().toURL());
         outStore.createSchema(contourSchema);
+        Transaction transaction = new DefaultTransaction("create");
         SimpleFeatureStore featureStore = (SimpleFeatureStore) outStore.getFeatureSource();
-        featureStore.addFeatures(contourFeatures);
+        featureStore.setTransaction(transaction);
+        try {
+            featureStore.addFeatures(contourFeatures);
+            transaction.commit();
+        } catch (Exception e) {
+            transaction.rollback();
+            throw e;
+        } finally {
+            transaction.close();
+        }
         shapeDir.deleteOnExit(); // Note: the order is important
         for (File f : shapeDir.listFiles())
             f.deleteOnExit();
@@ -151,8 +154,8 @@ public class LIsochrone extends RoutingResource {
                 contourSchema);
         SimpleFeatureBuilder fbuilder = new SimpleFeatureBuilder(contourSchema);
         for (IsochroneData isochrone : isochrones) {
-            fbuilder.add(isochrone.getGeometry());
-            fbuilder.add(isochrone.getCutoffSec());
+            fbuilder.add(isochrone.geometry);
+            fbuilder.add(isochrone.cutoffSec);
             featureCollection.add(fbuilder.buildFeature(null));
         }
         return featureCollection;
@@ -171,30 +174,26 @@ public class LIsochrone extends RoutingResource {
             debug = false;
         if (precisionMeters < 10)
             throw new IllegalArgumentException("Too small precisionMeters: " + precisionMeters);
+        if (offRoadDistanceMeters < 10)
+            throw new IllegalArgumentException("Too small offRoadDistanceMeters: " + offRoadDistanceMeters);
 
         IsoChroneRequest isoChroneRequest = new IsoChroneRequest(cutoffSecList);
-        isoChroneRequest.setIncludeDebugGeometry(debug);
-        isoChroneRequest.setPrecisionMeters(precisionMeters);
+        isoChroneRequest.includeDebugGeometry = debug;
+        isoChroneRequest.precisionMeters = precisionMeters;
+        isoChroneRequest.offRoadDistanceMeters = offRoadDistanceMeters;
         if (coordinateOrigin != null)
-            isoChroneRequest.setCoordinateOrigin(new GenericLocation(null, coordinateOrigin)
-                    .getCoordinate());
-        RoutingRequest sptRequest = buildRequest(0);
+            isoChroneRequest.coordinateOrigin = new GenericLocation(null, coordinateOrigin)
+                    .getCoordinate();
+        RoutingRequest sptRequest = buildRequest();
 
         if (maxTimeSec != null) {
-            isoChroneRequest.setMaxTimeSec(maxTimeSec);
+            isoChroneRequest.maxTimeSec = maxTimeSec;
         } else {
-            isoChroneRequest.setMaxTimeSec(isoChroneRequest.getMaxCutoffSec());
+            isoChroneRequest.maxTimeSec = isoChroneRequest.maxCutoffSec;
         }
 
-        List<IsochroneData> isochrones;
-        if (algorithm == null || "accSampling".equals(algorithm)) {
-            isochrones = accSamplingRenderer.getIsochrones(isoChroneRequest, sptRequest);
-        } else if ("recursiveGrid".equals(algorithm)) {
-            isochrones = recursiveGridRenderer.getIsochrones(isoChroneRequest, sptRequest);
-        } else {
-            throw new IllegalArgumentException("Unknown algorithm: " + algorithm);
-        }
-        return isochrones;
+        Router router = otpServer.getRouter(routerId);
+        return router.isoChroneSPTRenderer.getIsochrones(isoChroneRequest, sptRequest);
     }
 
     static SimpleFeatureType makeContourSchema() {
@@ -202,15 +201,19 @@ public class LIsochrone extends RoutingResource {
         SimpleFeatureTypeBuilder tbuilder = new SimpleFeatureTypeBuilder();
         tbuilder.setName("contours");
         tbuilder.setCRS(DefaultGeographicCRS.WGS84);
-        tbuilder.add("Geometry", MultiPolygon.class);
-        tbuilder.add("Time", Integer.class); // TODO change to something more descriptive and lowercase
+        // Do not use "geom" or "geometry" below, it seems to broke shapefile generation
+        tbuilder.add("the_geom", MultiPolygon.class);
+        tbuilder.add("time", Integer.class); // TODO change to something more descriptive and lowercase
         return tbuilder.buildFeatureType();
     }
 
     // TODO Extract this to utility package?
-    @AllArgsConstructor
     private static class DirectoryZipper implements StreamingOutput {
         private File directory;
+
+        DirectoryZipper(File directory) {
+            this.directory = directory;
+        }
 
         @Override
         public void write(OutputStream outStream) throws IOException {

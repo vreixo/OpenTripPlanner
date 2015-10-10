@@ -27,10 +27,9 @@ import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.TraverseMode;
 import org.opentripplanner.routing.core.TraverseModeSet;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
+import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.edgetype.StreetTraversalPermission;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.routing.spt.GraphPath;
 import org.opentripplanner.routing.spt.ShortestPathTree;
@@ -48,7 +47,7 @@ public class TurnCostTest {
 
     private Vertex bottomLeft;
     
-    private PlainStreetEdge maple_main1, broad1_2;
+    private StreetEdge maple_main1, broad1_2;
     
     private RoutingRequest proto;
 
@@ -70,24 +69,24 @@ public class TurnCostTest {
         StreetVertex broad3 = vertex("broad_3rd", 0.0, 0.0);
 
         // Each block along the main streets has unit length and is one-way
-        PlainStreetEdge maple1_2 = edge(maple1, maple2, 100.0, false);
-        PlainStreetEdge maple2_3 = edge(maple2, maple3, 100.0, false);
+        StreetEdge maple1_2 = edge(maple1, maple2, 100.0, false);
+        StreetEdge maple2_3 = edge(maple2, maple3, 100.0, false);
 
-        PlainStreetEdge main1_2 = edge(main1, main2, 100.0, false);
-        PlainStreetEdge main2_3 = edge(main2, main3, 100.0, false);
+        StreetEdge main1_2 = edge(main1, main2, 100.0, false);
+        StreetEdge main2_3 = edge(main2, main3, 100.0, false);
 
         broad1_2 = edge(broad1, broad2, 100.0, false);
-        PlainStreetEdge broad2_3 = edge(broad2, broad3, 100.0, false);
+        StreetEdge broad2_3 = edge(broad2, broad3, 100.0, false);
 
         // Each cross-street connects
         maple_main1 = edge(maple1, main1, 50.0, false);
-        PlainStreetEdge main_broad1 = edge(main1, broad1, 100.0, false);
+        StreetEdge main_broad1 = edge(main1, broad1, 100.0, false);
 
-        PlainStreetEdge maple_main2 = edge(maple2, main2, 50.0, false);
-        PlainStreetEdge main_broad2 = edge(main2, broad2, 50.0, false);
+        StreetEdge maple_main2 = edge(maple2, main2, 50.0, false);
+        StreetEdge main_broad2 = edge(main2, broad2, 50.0, false);
 
-        PlainStreetEdge maple_main3 = edge(maple3, main3, 100.0, false);
-        PlainStreetEdge main_broad3 = edge(main3, broad3, 100.0, false);
+        StreetEdge maple_main3 = edge(maple3, main3, 100.0, false);
+        StreetEdge main_broad3 = edge(main3, broad3, 100.0, false);
 
         // Turn restrictions are only for driving modes.
         // - can't turn from 1st onto Main.
@@ -103,19 +102,19 @@ public class TurnCostTest {
         
         // Make a prototype routing request.
         proto = new RoutingRequest();
-        proto.setCarSpeed(1.0);
-        proto.setWalkSpeed(1.0);
-        proto.setBikeSpeed(1.0);
-        proto.setTurnReluctance(1.0);
+        proto.carSpeed = 1.0;
+        proto.walkSpeed = 1.0;
+        proto.bikeSpeed = 1.0;
+        proto.turnReluctance = (1.0);
         proto.setWalkReluctance(1.0);
-        proto.setStairsReluctance(1.0);
+        proto.stairsReluctance = (1.0);
         
         // Turn costs are all 0 by default.
-        proto.setTraversalCostModel(new ConstantIntersectionTraversalCostModel(0.0));
+        proto.traversalCostModel = (new ConstantIntersectionTraversalCostModel(0.0));
     }
     
     private GraphPath checkForwardRouteDuration(RoutingRequest options, int expectedDuration) {
-        ShortestPathTree tree = new GenericAStar().getShortestPathTree(options);
+        ShortestPathTree tree = new AStar().getShortestPathTree(options);
         GraphPath path = tree.getPath(bottomLeft, false);
         assertNotNull(path);
         
@@ -144,7 +143,7 @@ public class TurnCostTest {
     @Test
     public void testForwardDefaultConstTurnCosts() {
         RoutingRequest options = proto.clone();
-        options.setTraversalCostModel(new ConstantIntersectionTraversalCostModel(10.0));
+        options.traversalCostModel = (new ConstantIntersectionTraversalCostModel(10.0));
         options.setRoutingContext(_graph, topRight, bottomLeft);
         
         // Without turn costs, this path costs 2x100 + 2x50 = 300.
@@ -191,7 +190,7 @@ public class TurnCostTest {
     @Test
     public void testForwardCarConstTurnCosts() {
         RoutingRequest options = proto.clone();
-        options.setTraversalCostModel(new ConstantIntersectionTraversalCostModel(10.0));
+        options.traversalCostModel = (new ConstantIntersectionTraversalCostModel(10.0));
         options.setMode(TraverseMode.CAR);
         options.setRoutingContext(_graph, topRight, bottomLeft);
         
@@ -232,7 +231,7 @@ public class TurnCostTest {
      * @param length
      * @param back true if this is a reverse edge
      */
-    private PlainStreetEdge edge(StreetVertex vA, StreetVertex vB, double length, boolean back) {
+    private StreetEdge edge(StreetVertex vA, StreetVertex vB, double length, boolean back) {
         String labelA = vA.getLabel();
         String labelB = vB.getLabel();
         String name = String.format("%s_%s", labelA, labelB);
@@ -242,16 +241,16 @@ public class TurnCostTest {
         LineString geom = GeometryUtils.getGeometryFactory().createLineString(coords);
 
         StreetTraversalPermission perm = StreetTraversalPermission.ALL;
-        PlainStreetEdge pse = new PlainStreetEdge(vA, vB, geom, name, length, perm, back);
+        StreetEdge pse = new StreetEdge(vA, vB, geom, name, length, perm, back);
         pse.setCarSpeed(1.0f);
         return pse;
     }
 
-    private void DisallowTurn(PlainStreetEdge from, PlainStreetEdge to) {
+    private void DisallowTurn(StreetEdge from, StreetEdge to) {
         TurnRestrictionType rType = TurnRestrictionType.NO_TURN;
-        TraverseModeSet restrictedModes = new TraverseModeSet(TraverseMode.CAR, TraverseMode.CUSTOM_MOTOR_VEHICLE);
+        TraverseModeSet restrictedModes = new TraverseModeSet(TraverseMode.CAR);
         TurnRestriction restrict = new TurnRestriction(from, to, rType, restrictedModes);
-        from.addTurnRestriction(restrict);
+        _graph.addTurnRestriction(from, restrict);
     }
 
 }

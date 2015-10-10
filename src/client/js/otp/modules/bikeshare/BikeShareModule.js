@@ -40,11 +40,13 @@ otp.modules.bikeshare.StationCollection =
     model: otp.modules.bikeshare.StationModel,
     
     sync: function(method, model, options) {
-        options.dataType = 'jsonp';
+        options.dataType = 'json';
         options.data = options.data || {};
         if(otp.config.routerId !== undefined) {
             options.data.routerId = otp.config.routerId;
         }
+        //Sends wanted translation to server
+        options.data.locale = otp.config.locale.config.locale_short;
         return Backbone.sync(method, model, options);
     },
     
@@ -64,7 +66,7 @@ otp.modules.bikeshare.Utils = {
 otp.modules.bikeshare.BikeShareModule = 
     otp.Class(otp.modules.planner.PlannerModule, {
     
-    moduleName  : "Bike Share Planner",
+    moduleName  : _tr("Bike Share Planner"),
 
     resultsWidget   : null,
     
@@ -79,7 +81,7 @@ otp.modules.bikeshare.BikeShareModule =
     activate : function() {
         if(this.activated) return;
         otp.modules.planner.PlannerModule.prototype.activate.apply(this);
-        this.mode = "WALK,BICYCLE";
+        this.mode = "WALK,BICYCLE_RENT";
         
         this.stationsLayer = new L.LayerGroup();
         this.addLayer("Bike Stations", this.stationsLayer);
@@ -96,7 +98,7 @@ otp.modules.bikeshare.BikeShareModule =
         
         this.initOptionsWidget();
         
-        this.defaultQueryParams.mode = "WALK,BICYCLE";
+        this.defaultQueryParams.mode = "WALK,BICYCLE_RENT";
         this.optionsWidget.applyQueryParams(this.defaultQueryParams);
                 
        
@@ -105,7 +107,7 @@ otp.modules.bikeshare.BikeShareModule =
     initOptionsWidget : function() {
         this.optionsWidget = new otp.widgets.tripoptions.TripOptionsWidget(
             'otp-'+this.id+'-optionsWidget', this, {
-                title : 'Trip Options'
+                title : _tr('Trip Options')
             }
         );
 
@@ -160,7 +162,7 @@ otp.modules.bikeshare.BikeShareModule =
                         
         this.drawItinerary(itin);
         
-        if(tripPlan.queryParams.mode === 'WALK,BICYCLE') { // bikeshare trip
+        if(tripPlan.queryParams.mode === 'WALK,BICYCLE_RENT') { // bikeshare trip
             var polyline = new L.Polyline(otp.util.Geo.decodePolyline(itin.itinData.legs[1].legGeometry.points));
             var start_and_end_stations = this.processStations(polyline.getLatLngs()[0], polyline.getLatLngs()[polyline.getLatLngs().length-1]);
         }
@@ -171,7 +173,7 @@ otp.modules.bikeshare.BikeShareModule =
         //this.resultsWidget.show();
         //this.resultsWidget.newItinerary(itin);
                     
-        if(start_and_end_stations !== undefined && tripPlan.queryParams.mode === 'WALK,BICYCLE') {
+        if(start_and_end_stations !== undefined && tripPlan.queryParams.mode === 'WALK,BICYCLE_RENT') {
             if(start_and_end_stations['start'] && start_and_end_stations['end']) {
            	    this.bikestationsWidget.setContentAndShow(
            	        start_and_end_stations['start'], 
@@ -202,29 +204,36 @@ otp.modules.bikeshare.BikeShareModule =
             
             if (station.isWalkableFrom(start, tol)) {
                 // start station
-                this.setStationMarker(station, "PICK UP BIKE", this.icons.startBike);
+                // TRANSLATORS: Popup title station from where bike is picked
+                // up
+                this.setStationMarker(station, _tr("PICK UP BIKE"), this.icons.startBike);
                 start_and_end_stations['start'] = station;
             }
             else if (station.isNearishTo(this.startLatLng, distTol)) {
                 // start-adjacent station
                 var distanceToStart = station.distanceTo(this.startLatLng);
                 var icon = distanceToStart < distTol/2 ? this.icons.getLarge(stationData) : this.icons.getMedium(stationData);
-                this.setStationMarker(station, "ALTERNATE PICKUP", icon);
+                // TRANSLATORS: Popup title alternative station to pickup bike on bike
+                // sharing
+                this.setStationMarker(station, _tr("ALTERNATE PICKUP"), icon);
             }
             else if (station.isWalkableFrom(end, tol)) {
                 // end station
-                this.setStationMarker(station, "DROP OFF BIKE", this.icons.endBike);
+                // TRANSLATORS: Popup title 
+                this.setStationMarker(station, _tr("DROP OFF BIKE"), this.icons.endBike);
                 start_and_end_stations['end'] = station;
             }
             else if (station.isNearishTo(this.endLatLng, distTol)) {
                 // end-adjacent station
                 var distanceToEnd = station.distanceTo(this.endLatLng);
                 var icon = distanceToEnd < distTol/2 ? this.icons.getLarge(stationData) : this.icons.getMedium(stationData);
-                this.setStationMarker(station, "ALTERNATE DROP OFF", icon);
+                // TRANSLATORS: Popup title
+                this.setStationMarker(station, _tr("ALTERNATE DROP OFF"), icon);
             }
             else {
                 icon = icon || this.icons.getSmall(stationData);
-                this.setStationMarker(station, "BIKE STATION", icon);
+                // TRANSLATORS: Popup title Bike sharing station
+                this.setStationMarker(station, _tr("BIKE STATION"), icon);
             }
         }, this);
         
@@ -303,13 +312,14 @@ otp.modules.bikeshare.BikeShareModule =
             
     constructStationInfo : function(title, station) {
         if(title == null) {
-            title = (station.markerTitle !== undefined) ? station.markerTitle : "BIKE STATION";
+            title = (station.markerTitle !== undefined) ? station.markerTitle : _tr("BIKE STATION");
         }
         var info = "<strong>"+title+"</strong><br/>";
         station.markerTitle = title;
-        info += '<strong>Station:</strong> '+station.name+'<br/>';
-        info += '<strong>Bikes Available:</strong> '+station.bikesAvailable+'<br/>';
-        info += '<strong>Docks Available:</strong> '+station.spacesAvailable+'<br/>';
+        //TRANSLATORS: Bike sharing station: station name
+        info += '<strong>' + _tr("Station:") + '</strong> '+station.name+'<br/>';
+        info += ngettext("<strong>%d</strong> bike available", "<strong>%d</strong> bikes available", station.bikesAvailable) + "<br />";
+        info += ngettext("<strong>%d</strong> dock available", "<strong>%d</strong> docks available", station.spacesAvailable) + '<br />';
         return info;
     },
                 

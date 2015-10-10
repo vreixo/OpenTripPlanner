@@ -20,18 +20,15 @@ import java.util.Set;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.Trip;
-import org.opentripplanner.routing.alertpatch.Alert;
 import org.opentripplanner.routing.algorithm.NegativeWeightException;
 import org.opentripplanner.routing.automata.AutomatonState;
 import org.opentripplanner.routing.edgetype.OnboardEdge;
 import org.opentripplanner.routing.edgetype.TablePatternEdge;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.edgetype.TransitBoardAlight;
 import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
-import org.opentripplanner.routing.pathparser.PathParser;
 import org.opentripplanner.routing.trippattern.TripTimes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +40,7 @@ public class State implements Cloneable {
     protected long time;
 
     // accumulated weight up to this state
-    protected double weight;
+    public double weight;
 
     // associate this state with a vertex in the graph
     protected Vertex vertex;
@@ -51,7 +48,7 @@ public class State implements Cloneable {
     // allow path reconstruction from states
     protected State backState;
 
-    protected Edge backEdge;
+    public Edge backEdge;
 
     // allow traverse result chaining (multiple results)
     protected State next;
@@ -62,7 +59,7 @@ public class State implements Cloneable {
     // how far have we walked
     // TODO(flamholz): this is a very confusing name as it actually applies to all non-transit modes.
     // we should DEFINITELY rename this variable and the associated methods.
-    protected double walkDistance;
+    public double walkDistance;
 
     // The time traveled pre-transit, for park and ride or kiss and ride searches
     int preTransitTime;
@@ -106,6 +103,14 @@ public class State implements Cloneable {
      * a RoutingContext in TransitIndex, tests, etc.
      */
     public State(Vertex vertex, Edge backEdge, long timeSeconds, RoutingRequest options) {
+        this(vertex, backEdge, timeSeconds, timeSeconds, options);
+    }
+    
+    /**
+     * Create an initial state, forcing vertex, back edge, time and start time to the specified values. Useful for starting
+     * a multiple initial state search, for example when propagating profile results to the street network in RoundBasedProfileRouter.
+     */
+    public State(Vertex vertex, Edge backEdge, long timeSeconds, long startTime, RoutingRequest options) {
         this.weight = 0;
         this.vertex = vertex;
         this.backEdge = backEdge;
@@ -114,21 +119,21 @@ public class State implements Cloneable {
         // note that here we are breaking the circular reference between rctx and options
         // this should be harmless since reversed clones are only used when routing has finished
         this.stateData.opt = options;
-        this.stateData.startTime = timeSeconds;
+        this.stateData.startTime = startTime;
         this.stateData.usingRentedBike = false;
         /* If the itinerary is to begin with a car that is left for transit, the initial state of arriveBy searches is
            with the car already "parked" and in WALK mode. Otherwise, we are in CAR mode and "unparked". */
         if (options.parkAndRide || options.kissAndRide) {
-            this.stateData.carParked = options.isArriveBy();
+            this.stateData.carParked = options.arriveBy;
             this.stateData.nonTransitMode = this.stateData.carParked ? TraverseMode.WALK : TraverseMode.CAR;
+        } else if (options.bikeParkAndRide) {
+            this.stateData.bikeParked = options.arriveBy;
+            this.stateData.nonTransitMode = this.stateData.bikeParked ? TraverseMode.WALK
+                    : TraverseMode.BICYCLE;
         }
         this.walkDistance = 0;
         this.preTransitTime = 0;
         this.time = timeSeconds * 1000;
-        if (options.rctx != null) {
-            this.pathParserStates = new int[options.rctx.pathParsers.length];
-            Arrays.fill(this.pathParserStates, AutomatonState.START);
-        }
         stateData.routeSequence = new AgencyAndId[0];
     }
 
@@ -267,16 +272,30 @@ public class State implements Cloneable {
         return stateData.carParked;
     }
 
+    public boolean isBikeParked() {
+        return stateData.bikeParked;
+    }
+
     /**
      * @return True if the state at vertex can be the end of path.
      */
     public boolean isFinal() {
         // When drive-to-transit is enabled, we need to check whether the car has been parked (or whether it has been picked up in reverse).
-        boolean checkPark = stateData.opt.parkAndRide || stateData.opt.kissAndRide;
-        if (stateData.opt.isArriveBy())
-            return !isBikeRenting() && !(checkPark && isCarParked());
-        else
-            return !isBikeRenting() && !(checkPark && !isCarParked());
+        boolean parkAndRide = stateData.opt.parkAndRide || stateData.opt.kissAndRide;
+        boolean bikeParkAndRide = stateData.opt.bikeParkAndRide;
+        boolean bikeRentingOk = false;
+        boolean bikeParkAndRideOk = false;
+        boolean carParkAndRideOk = false;
+        if (stateData.opt.arriveBy) {
+            bikeRentingOk = !isBikeRenting();
+            bikeParkAndRideOk = !bikeParkAndRide || !isBikeParked();
+            carParkAndRideOk = !parkAndRide || !isCarParked();
+        } else {
+            bikeRentingOk = !isBikeRenting();
+            bikeParkAndRideOk = !bikeParkAndRide || isBikeParked();
+            carParkAndRideOk = !parkAndRide || isCarParked();
+        }
+        return bikeRentingOk && bikeParkAndRideOk && carParkAndRideOk;
     }
 
     public Stop getPreviousStop() {
@@ -301,49 +320,6 @@ public class State implements Cloneable {
 
     public int getLastNextArrivalDelta () {
         return stateData.lastNextArrivalDelta;
-    }
-
-   /**
-     * Multicriteria comparison of states. 
-     * @return True if this state is better than the other one (or equal) 
-     * both in terms of time and weight.
-     */
-    public boolean dominates(State other) {
-        if (other.weight == 0) {
-            return false;
-        }
-        // Multi-state (bike rental, P+R) - no domination for different states
-        if (isBikeRenting() != other.isBikeRenting())
-            return false;
-        if (isCarParked() != other.isCarParked())
-            return false;
-
-        if (backEdge != other.getBackEdge() && ((backEdge instanceof PlainStreetEdge)
-                && (!((PlainStreetEdge) backEdge).getTurnRestrictions().isEmpty())))
-            return false;
-
-        if (this.routeSequenceSubset(other)) {
-            // TODO subset is not really the right idea
-            return this.weight <= other.weight &&
-                    other.getElapsedTimeSeconds() >= this.getElapsedTimeSeconds();
-            // && this.getNumBoardings() <= other.getNumBoardings();
-        }
-
-        // If returning more than one result from GenericAStar, the search can be very slow
-        // unless you replace the following code with:
-        // return false;
-        double weightDiff = this.weight / other.weight;
-        return walkDistance <= other.getWalkDistance() * 1.05
-                && (weightDiff < 1.02 && this.weight - other.weight < 30)
-                && this.getElapsedTimeSeconds() - other.getElapsedTimeSeconds() <= 30;
-    }
-
-    /**
-     * Returns true if this state's weight is lower than the other one. Considers only weight and
-     * not time or other criteria.
-     */
-    public boolean betterThan(State other) {
-        return this.weight < other.weight;
     }
 
     public double getWeight() {
@@ -399,10 +375,6 @@ public class State implements Cloneable {
         return stateData.backWalkingBike;
     }
 
-    public Set<Alert> getBackAlerts () {
-        return stateData.notes;
-    }
-    
     /**
      * Get the name of the direction used to get to this state. For transit, it is the headsign,
      * while for other things it is what you would expect.
@@ -514,6 +486,7 @@ public class State implements Cloneable {
         // TODO Check if those two lines are needed:
         newState.stateData.usingRentedBike = stateData.usingRentedBike;
         newState.stateData.carParked = stateData.carParked;
+        newState.stateData.bikeParked = stateData.bikeParked;
         return newState;
     }
 
@@ -649,14 +622,6 @@ public class State implements Cloneable {
         return foundAlternatePaths;
     }
     
-    public boolean allPathParsersAccept() {
-        PathParser[] parsers = this.stateData.opt.rctx.pathParsers;
-        for (int i = 0; i < parsers.length; i++) {
-            if ( ! parsers[i].accepts(pathParserStates[i])) return false;
-        }
-        return true;
-    }
-
     public String getPathParserStates() {
         StringBuilder sb = new StringBuilder();
         sb.append("( ");
@@ -698,11 +663,6 @@ public class State implements Cloneable {
         State unoptimized = orig;
         State ret = orig.reversedClone();
         long newInitialWaitTime = this.stateData.initialWaitTime;
-        PathParser pathParsers[];
-
-        // disable path parsing temporarily
-        pathParsers = stateData.opt.rctx.pathParsers;
-        stateData.opt.rctx.pathParsers = new PathParser[0];
 
         Edge edge = null;
 
@@ -716,19 +676,19 @@ public class State implements Cloneable {
                         orig.getNumBoardings() == 1 &&
                         (
                                 // boarding in a forward main search
-                                (((TransitBoardAlight) edge).isBoarding() &&                         
-                                        !stateData.opt.isArriveBy()) ||
+                                (((TransitBoardAlight) edge).boarding &&                         
+                                        !stateData.opt.arriveBy) ||
                                 // alighting in a reverse main search
-                                (!((TransitBoardAlight) edge).isBoarding() &&
-                                        stateData.opt.isArriveBy())
+                                (!((TransitBoardAlight) edge).boarding &&
+                                        stateData.opt.arriveBy)
                          )
                     ) {
 
                     ret = ((TransitBoardAlight) edge).traverse(ret, orig.getBackState().getTimeSeconds());
                     newInitialWaitTime = ret.stateData.initialWaitTime;
-                }
-                else                   
+                } else {
                     ret = edge.traverse(ret);
+                }
 
                 if (ret != null && ret.getBackMode() != null && orig.getBackMode() != null &&
                         ret.getBackMode() != orig.getBackMode()) {
@@ -741,9 +701,6 @@ public class State implements Cloneable {
                             + "time-dependent turn restriction here, or if there is no transit leg "
                             + "in a K+R result, this is not totally unexpected. Otherwise, you "
                             + "might want to look into it.");
-
-                    // re-enable path parsing
-                    stateData.opt.rctx.pathParsers = pathParsers;
 
                     if (forward)
                         return this;
@@ -761,14 +718,15 @@ public class State implements Cloneable {
                 editor.incrementWalkDistance(orig.getWalkDistanceDelta());
                 editor.incrementPreTransitTime(orig.getPreTransitTimeDelta());
                 
-                // propagate the modes and alerts through to the reversed edge
+                // propagate the modes through to the reversed edge
                 editor.setBackMode(orig.getBackMode());
-                editor.addAlerts(orig.getBackAlerts());
 
                 if (orig.isBikeRenting() != orig.getBackState().isBikeRenting())
                     editor.setBikeRenting(!orig.isBikeRenting());
                 if (orig.isCarParked() != orig.getBackState().isCarParked())
                     editor.setCarParked(!orig.isCarParked());
+                if (orig.isBikeParked() != orig.getBackState().isBikeParked())
+                    editor.setBikeParked(!orig.isBikeParked());
 
                 editor.setNumBoardings(getNumBoardings() - orig.getNumBoardings());
 
@@ -781,9 +739,6 @@ public class State implements Cloneable {
             
             orig = orig.getBackState();
         }
-            
-        // re-enable path parsing
-        stateData.opt.rctx.pathParsers = pathParsers;
 
         if (forward) {
             State reversed = ret.reverse();
@@ -879,4 +834,9 @@ public class State implements Cloneable {
     public double getOptimizedElapsedTimeSeconds() {
         return getElapsedTimeSeconds() - stateData.initialWaitTime;
     }
+
+    public boolean hasEnteredNoThruTrafficArea() {
+        return stateData.enteredNoThroughTrafficArea;
+    }
+
 }

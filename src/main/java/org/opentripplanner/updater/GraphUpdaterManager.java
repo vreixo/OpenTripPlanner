@@ -13,9 +13,12 @@
 
 package org.opentripplanner.updater;
 
+import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -86,7 +89,7 @@ public class GraphUpdaterManager {
     public GraphUpdaterManager(Graph graph) {
         this.graph = graph;
         
-        String routerId = graph.getRouterId();
+        String routerId = graph.routerId;
         if(routerId == null || routerId.isEmpty())
             routerId = DEFAULT_ROUTER_ID;
         
@@ -202,4 +205,25 @@ public class GraphUpdaterManager {
         return updaterList.size();
     }
 
+    /**
+     * Just an example of fetching status information from the graph updater manager to expose it in a web service.
+     * More useful stuff should be added later.
+     */
+    public Map<Integer, String> getUpdaterDescriptions () {
+        Map<Integer, String> ret = Maps.newTreeMap();
+        int i = 0;
+        for (GraphUpdater updater : updaterList) {
+            ret.put(i++, updater.toString());
+        }
+        return ret;
+    }
+
+    /**
+     * Just an example of fetching status information from the graph updater manager to expose it in a web service.
+     * More useful stuff should be added later.
+     */
+    public GraphUpdater getUpdater (int id) {
+        if (id >= updaterList.size()) return null;
+        return updaterList.get(id);
+    }
 }

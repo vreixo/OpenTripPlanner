@@ -24,10 +24,11 @@ import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
 import org.opentripplanner.ConstantsForTests;
 import org.opentripplanner.gtfs.GtfsContext;
 import org.opentripplanner.gtfs.GtfsLibrary;
-import org.opentripplanner.routing.algorithm.GenericAStar;
+import org.opentripplanner.routing.algorithm.AStar;
 import org.opentripplanner.routing.edgetype.OnBoardDepartPatternHop;
 import org.opentripplanner.routing.edgetype.PatternHop;
 import org.opentripplanner.routing.edgetype.factory.GTFSPatternHopFactory;
+import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.routing.spt.GraphPath;
@@ -49,7 +50,7 @@ public class TestOnBoardRouting extends TestCase {
 
     private Graph graph;
 
-    private GenericAStar aStar = new GenericAStar();
+    private AStar aStar = new AStar();
 
     public void setUp() throws Exception {
         GtfsContext context = GtfsLibrary.readGtfs(new File(ConstantsForTests.FAKE_GTFS));
@@ -86,8 +87,8 @@ public class TestOnBoardRouting extends TestCase {
             Vertex origin, destination;
             do {
                 /* See FAKE_GTFS for available locations */
-                origin = graph.getVertex("agency_" + (char) (65 + rand.nextInt(20)));
-                destination = graph.getVertex("agency_" + (char) (65 + rand.nextInt(20)));
+                origin = graph.getVertex("agency:" + (char) (65 + rand.nextInt(20)));
+                destination = graph.getVertex("agency:" + (char) (65 + rand.nextInt(20)));
             } while (origin.equals(destination));
 
             /* ...at a random date/time */
@@ -171,7 +172,7 @@ public class TestOnBoardRouting extends TestCase {
             OnboardDepartVertex onboardOrigin = new OnboardDepartVertex("OnBoard_Origin", lat, lon);
             @SuppressWarnings("unused")
             OnBoardDepartPatternHop currentHop = new OnBoardDepartPatternHop(onboardOrigin, nextV,
-                    tripTimes, options.getRctx().serviceDays.get(1), stopIndex, k);
+                    tripTimes, options.rctx.serviceDays.get(1), stopIndex, k);
 
             options.dateTime = newStart;
             options.setRoutingContext(graph, onboardOrigin, destination);
@@ -204,8 +205,9 @@ public class TestOnBoardRouting extends TestCase {
             assertTrue(numBoardings2 < numBoardings1);
 
             /* Cleanup edges */
-            int nRemoved = onboardOrigin.removeTemporaryEdges();
-            assertEquals(1, nRemoved);
+            for (Edge edge : onboardOrigin.getOutgoing()) {
+                graph.removeEdge(edge);
+            }
 
             n++;
             if (n > NTESTS)

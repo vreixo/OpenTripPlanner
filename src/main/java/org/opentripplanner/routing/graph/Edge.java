@@ -13,27 +13,24 @@
 
 package org.opentripplanner.routing.graph;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-
-import javax.xml.bind.annotation.XmlTransient;
-
-import lombok.Getter;
-
+import com.vividsolutions.jts.geom.LineString;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.common.MavenVersion;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.util.IncrementingIdGenerator;
 import org.opentripplanner.routing.util.UniqueIdGenerator;
 
-import com.vividsolutions.jts.geom.LineString;
+import javax.xml.bind.annotation.XmlTransient;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.util.Locale;
 
 /**
- * This is the standard implementation of an edge with fixed from and to Vertex instances; all standard OTP edges are subclasses of this.
+ * This is the standard implementation of an edge with fixed from and to Vertex instances;
+ * all standard OTP edges are subclasses of this.
  */
 public abstract class Edge implements Serializable {
 
@@ -47,7 +44,6 @@ public abstract class Edge implements Serializable {
     /**
      * Identifier of the edge. Negative means not set.
      */
-    @Getter
     private int id;
 
     protected Vertex fromv;
@@ -104,28 +100,6 @@ public abstract class Edge implements Serializable {
                 this.getToVertex() == e.getFromVertex());
     }
     
-    public void attachFrom(Vertex fromv) {
-        detachFrom();
-        if (fromv == null)
-            throw new IllegalStateException("attaching to fromv null");
-        this.fromv = fromv;
-        fromv.addOutgoing(this);
-    }
-
-    public void attachTo(Vertex tov) {
-        detachTo();
-        if (tov == null)
-            throw new IllegalStateException("attaching to tov null");
-        this.tov = tov;
-        tov.addIncoming(this);
-    }
-
-    /** Attach this edge to new endpoint vertices, keeping edgelists coherent */
-    public void attach(Vertex fromv, Vertex tov) {
-        attachFrom(fromv);
-        attachTo(tov);
-    }
-
     /**
      * Get a direction on paths where it matters, or null
      * 
@@ -135,42 +109,9 @@ public abstract class Edge implements Serializable {
         return null;
     }
 
-    protected boolean detachFrom() {
-        boolean detached = false;
-        if (fromv != null) {
-            detached = fromv.removeOutgoing(this);
-            fromv = null;
-        }
-        return detached;
-    }
-
-    protected boolean detachTo() {
-        boolean detached = false;
-        if (tov != null) {
-            detached = tov.removeIncoming(this);
-            tov = null;
-        }
-        return detached;
-    }
-
     /**
-     * Disconnect this edge from its endpoint vertices, keeping edgelists coherent
-     * 
-     * @return
-     */
-    public int detach() {
-        int nDetached = 0;
-        if (detachFrom()) {
-            ++nDetached;
-        }
-        if (detachTo()) {
-            ++nDetached;
-        }
-        return nDetached;
-    }
-
-    /**
-     * This should only be called inside State; other methods should call {@link org.opentripplanner.routing.core.State.getBackTrip()}.
+     * This should only be called inside State; other methods should call
+     * org.opentripplanner.routing.core.State.getBackTrip()
      * 
      * @author mattwigway
      */
@@ -227,8 +168,21 @@ public abstract class Edge implements Serializable {
         return 0;
     }
 
+
+    /**
+     * Gets english localized name
+     * @return english localized name
+     */
     public abstract String getName();
 
+    /**
+     * Gets wanted localization
+     * @param locale wanted locale
+     * @return Localized in specified locale name
+     */
+    public abstract String getName(Locale locale);
+
+    // TODO Add comments about what a "bogus name" is.
     public boolean hasBogusName() {
         return false;
     }
@@ -273,13 +227,9 @@ public abstract class Edge implements Serializable {
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException {
         if (fromv == null) {
-            if (this instanceof PlainStreetEdge)
-                System.out.println(((PlainStreetEdge) this).getGeometry());
             System.out.printf("fromv null %s \n", this);
         }
         if (tov == null) {
-            if (this instanceof PlainStreetEdge)
-                System.out.println(((PlainStreetEdge) this).getGeometry());
             System.out.printf("tov null %s \n", this);
         }
         out.defaultWriteObject();
@@ -324,6 +274,10 @@ public abstract class Edge implements Serializable {
             }
             return false;
         }
+    }
+    
+    public int getId(){
+    	return this.id;
     }
 
 }

@@ -23,7 +23,6 @@ import org.opentripplanner.common.geometry.GeometryUtils;
 import org.opentripplanner.common.model.GenericLocation;
 import org.opentripplanner.routing.core.TraversalRequirements;
 import org.opentripplanner.routing.core.TraverseModeSet;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
 import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.edgetype.StreetTraversalPermission;
 import org.opentripplanner.routing.graph.Graph;
@@ -44,7 +43,7 @@ public class ClosestEdgesTest {
 
     private StreetVertexIndexService finder;
 
-    private PlainStreetEdge top, bottom, left, right;
+    private StreetEdge top, bottom, left, right;
 
     private IntersectionVertex br, tr, bl, tl;
 
@@ -65,31 +64,30 @@ public class ClosestEdgesTest {
         bl = new IntersectionVertex(graph, "bl", -74.01, 40.0);
         br = new IntersectionVertex(graph, "br", -74.00, 40.0);
 
-        top = new PlainStreetEdge(tl, tr,
+        top = new StreetEdge(tl, tr,
                 GeometryUtils.makeLineString(-74.01, 40.01, -74.0, 40.01), "top", 1500,
                 StreetTraversalPermission.CAR, false);
-        bottom = new PlainStreetEdge(br, bl,
+        bottom = new StreetEdge(br, bl,
                 GeometryUtils.makeLineString(-74.01, 40.0, -74.0, 40.0), "bottom", 1500,
                 StreetTraversalPermission.BICYCLE_AND_CAR, false);
-        left = new PlainStreetEdge(bl, tl,
+        left = new StreetEdge(bl, tl,
                 GeometryUtils.makeLineString(-74.01, 40.0, -74.01, 40.01), "left", 1500,
                 StreetTraversalPermission.BICYCLE_AND_CAR, false);
-        right = new PlainStreetEdge(br, tr,
+        right = new StreetEdge(br, tr,
                 GeometryUtils.makeLineString(-74.0, 40.0, -74.0, 40.01), "right", 1500,
                 StreetTraversalPermission.PEDESTRIAN_AND_BICYCLE, false);
 
-        StreetEdge topBack = new PlainStreetEdge(tr, tl, (LineString) top.getGeometry().reverse(),
+        StreetEdge topBack = new StreetEdge(tr, tl, (LineString) top.getGeometry().reverse(),
                 "topBack", 1500, StreetTraversalPermission.CAR, true);
-        StreetEdge bottomBack = new PlainStreetEdge(br, bl, (LineString) bottom.getGeometry()
+        StreetEdge bottomBack = new StreetEdge(br, bl, (LineString) bottom.getGeometry()
                 .reverse(), "bottomBack", 1500, StreetTraversalPermission.BICYCLE_AND_CAR, true);
-        StreetEdge leftBack = new PlainStreetEdge(tl, bl,
+        StreetEdge leftBack = new StreetEdge(tl, bl,
                 (LineString) left.getGeometry().reverse(), "leftBack", 1500,
                 StreetTraversalPermission.BICYCLE_AND_CAR, true);
-        StreetEdge rightBack = new PlainStreetEdge(tr, br, (LineString) right.getGeometry()
+        StreetEdge rightBack = new StreetEdge(tr, br, (LineString) right.getGeometry()
                 .reverse(), "rightBack", 1500, StreetTraversalPermission.CAR, true);
 
         StreetVertexIndexServiceImpl myFinder = new StreetVertexIndexServiceImpl(graph);
-        myFinder.setup();
         finder = myFinder;
     }
 
@@ -100,7 +98,7 @@ public class ClosestEdgesTest {
 
         // Double check that all the edges returned can be traversed.
         for (CandidateEdge e : edges) {
-            assertTrue(reqs.canBeTraversed(e.getEdge()));
+            assertTrue(reqs.canBeTraversed(e.edge));
         }
     }
 
@@ -117,7 +115,7 @@ public class ClosestEdgesTest {
         // Only allow walking
         TraverseModeSet modes = new TraverseModeSet();
         modes.setWalk(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
 
         // There's only one walkable edge.
         checkClosestEdgeModes(loc, reqs, 1);
@@ -125,51 +123,32 @@ public class ClosestEdgesTest {
         // Only allow biking: there are 5 bikeable edges.
         modes = new TraverseModeSet();
         modes.setBicycle(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
         checkClosestEdgeModes(loc, reqs, 2);
 
         // Only allow driving: there are 7 driveable edges.
         modes = new TraverseModeSet();
         modes.setCar(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
         checkClosestEdgeModes(loc, reqs, 2);
 
         // Allow driving and biking: all 8 edges can be traversed.
         modes = new TraverseModeSet();
         modes.setCar(true);
         modes.setBicycle(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
         checkClosestEdgeModes(loc, reqs, 2);
-    }
-
-    @Test
-    public void testInteriorEdgeCase() {
-        // Lies smack in the middle of the box
-        Coordinate c = new Coordinate(-74.005, 40.005);
-        GenericLocation loc = new GenericLocation(c);
-        TraversalRequirements reqs = new TraversalRequirements();
-
-        // Should only return 2 edges even though all edges are equidistant.
-        // TODO(flamholz): this doesn't feel like the right behavior to me.
-        // Consider fixing it.
-        CandidateEdgeBundle edges = finder.getClosestEdges(loc, reqs);
-        assertEquals(2, edges.size());
     }
 
     /**
      * Checks that the best edge found is this one and that the number of edges found matches.
-     * 
-     * @param reqs
-     * @param loc
-     * @param expectedBest
-     * @param expectedCandidates
      */
     private void checkBest(TraversalRequirements reqs, GenericLocation loc,
             StreetEdge expectedBest, int expectedCandidates) {
         // Should give me the top edge as the best edge.
         // topBack is worse because of the heading.
         CandidateEdgeBundle candidates = finder.getClosestEdges(loc, reqs);
-        assertEquals(expectedBest, candidates.best.getEdge());
+        assertEquals(expectedBest, candidates.best.edge);
         assertEquals(expectedCandidates, candidates.size());
     }
 
@@ -181,19 +160,19 @@ public class ClosestEdgesTest {
         TraversalRequirements reqs = new TraversalRequirements();
         TraverseModeSet modes = new TraverseModeSet();
         modes.setCar(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
         
         for (double degreeOff = 0.0; degreeOff < 30.0; degreeOff += 3.0) {
             // Location along the top edge, traveling with the forward edge
             // exactly.
             GenericLocation loc = new GenericLocation(c);
-            loc.setHeading(top.getAzimuth() + degreeOff);
+            loc.heading = top.getAzimuth() + degreeOff;
 
             // The top edge should be returned in all cases.
             checkBest(reqs, loc, top, 2);
 
             // Try when we're off in the opposite direction
-            loc.setHeading(top.getAzimuth() - degreeOff);
+            loc.heading = top.getAzimuth() - degreeOff;
             checkBest(reqs, loc, top, 2);
         }
     }
@@ -206,23 +185,23 @@ public class ClosestEdgesTest {
         TraversalRequirements reqs = new TraversalRequirements();
         TraverseModeSet modes = new TraverseModeSet();
         modes.setCar(true);
-        reqs.setModes(modes);
+        reqs.modes = modes;
         
         // Location along the top edge, traveling with the forward edge
         // exactly.
         GenericLocation loc = new GenericLocation(c);
-        loc.setHeading(top.getAzimuth());
+        loc.heading = top.getAzimuth();
         
         CandidateEdgeBundle candidates = finder.getClosestEdges(loc, reqs);
         Collections.sort(candidates, new CandidateEdge.CandidateEdgeScoreComparator());
         
         // Check that scores are in ascending order.
-        double lastScore = candidates.best.getScore();
+        double lastScore = candidates.best.score;
         for (CandidateEdge ce : candidates) {
-            assertTrue(ce.getScore() >= lastScore);
-            lastScore = ce.getScore();
+            assertTrue(ce.score >= lastScore);
+            lastScore = ce.score;
         }
         
-        assertEquals(candidates.best.getScore(), candidates.get(0).getScore(), 0.0);
+        assertEquals(candidates.best.score, candidates.get(0).score, 0.0);
     }    
 }

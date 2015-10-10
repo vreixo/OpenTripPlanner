@@ -13,6 +13,7 @@
 
 package org.opentripplanner.model.json_serialization;
 
+import com.conveyal.geojson.GeometrySerializer;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
@@ -22,12 +23,11 @@ import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
 
-
 public class SerializerUtils {
 
     public static SimpleModule getSerializerModule() {
         SimpleModule module = new SimpleModule("VertexJSONSerializer", new Version(1, 0, 0, null, "com.fasterxml.jackson.module", "jackson-module-jaxb-annotations"));
-        module.addSerializer(new GeoJSONSerializer());
+        module.addSerializer(new GeometrySerializer());
         module.addSerializer(new CoordinateSerializer());
         module.addSerializer(new PackedCoordinateSequenceSerializer());
         return module;

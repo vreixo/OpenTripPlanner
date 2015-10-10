@@ -26,21 +26,19 @@ import org.onebusaway.gtfs.model.AgencyAndId;
 import org.opentripplanner.api.model.Itinerary;
 import org.opentripplanner.api.model.Leg;
 import org.opentripplanner.api.model.TripPlan;
-import org.opentripplanner.api.resource.PlanGenerator;
+import org.opentripplanner.api.resource.GraphPathToTripPlanConverter;
 import org.opentripplanner.common.model.GenericLocation;
-import org.opentripplanner.graph_builder.impl.GtfsGraphBuilderImpl;
+import org.opentripplanner.graph_builder.module.GtfsModule;
 import org.opentripplanner.graph_builder.model.GtfsBundle;
-import org.opentripplanner.routing.algorithm.GenericAStar;
 import org.opentripplanner.routing.core.RoutingRequest;
-import org.opentripplanner.routing.core.ServiceDay;
 import org.opentripplanner.routing.core.TraverseMode;
 import org.opentripplanner.routing.core.TraverseModeSet;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.impl.AlertPatchServiceImpl;
 import org.opentripplanner.routing.impl.DefaultStreetVertexIndexFactory;
-import org.opentripplanner.routing.impl.LongDistancePathService;
-import org.opentripplanner.routing.impl.RetryingPathServiceImpl;
-import org.opentripplanner.routing.services.PathService;
+import org.opentripplanner.routing.impl.GraphPathFinder;
+import org.opentripplanner.routing.spt.GraphPath;
+import org.opentripplanner.standalone.Router;
 import org.opentripplanner.updater.alerts.AlertsUpdateHandler;
 import org.opentripplanner.updater.stoptime.TimetableSnapshotSource;
 
@@ -53,11 +51,9 @@ public abstract class GtfsTest extends TestCase {
 
     public Graph graph;
     AlertsUpdateHandler alertsUpdateHandler;
-    PlanGenerator planGenerator;
-    PathService pathService;
-    GenericAStar genericAStar;
     TimetableSnapshotSource timetableSnapshotSource;
     AlertPatchServiceImpl alertPatchServiceImpl;
+    public Router router;
 
     public abstract String getFeedName();
 
@@ -72,10 +68,12 @@ public abstract class GtfsTest extends TestCase {
         File gtfsRealTime = new File("src/test/resources/" + getFeedName() + ".pb");
         GtfsBundle gtfsBundle = new GtfsBundle(gtfs);
         List<GtfsBundle> gtfsBundleList = Collections.singletonList(gtfsBundle);
-        GtfsGraphBuilderImpl gtfsGraphBuilderImpl = new GtfsGraphBuilderImpl(gtfsBundleList);
+        GtfsModule gtfsGraphBuilderImpl = new GtfsModule(gtfsBundleList);
 
         alertsUpdateHandler = new AlertsUpdateHandler();
         graph = new Graph();
+        router = new Router("TEST", graph);
+
         gtfsBundle.setTransfersTxtDefinesStationPaths(true);
         gtfsGraphBuilderImpl.buildGraph(graph, null);
         // Set the agency ID to be used for tests to the first one in the feed.
@@ -83,13 +81,14 @@ public abstract class GtfsTest extends TestCase {
         System.out.printf("Set the agency ID for this test to %s\n", agencyId);
         graph.index(new DefaultStreetVertexIndexFactory());
         timetableSnapshotSource = new TimetableSnapshotSource(graph);
-        timetableSnapshotSource.setPurgeExpiredData(false);
-        graph.setTimetableSnapshotSource(timetableSnapshotSource);
+        timetableSnapshotSource.purgeExpiredData = (false);
+        graph.timetableSnapshotSource = (timetableSnapshotSource);
         alertPatchServiceImpl = new AlertPatchServiceImpl(graph);
         alertsUpdateHandler.setAlertPatchService(alertPatchServiceImpl);
         alertsUpdateHandler.setDefaultAgencyId("MMRI");
 
         try {
+            final boolean fullDataset = false;
             InputStream inputStream = new FileInputStream(gtfsRealTime);
             FeedMessage feedMessage = FeedMessage.PARSER.parseFrom(inputStream);
             List<FeedEntity> feedEntityList = feedMessage.getEntityList();
@@ -97,18 +96,9 @@ public abstract class GtfsTest extends TestCase {
             for (FeedEntity feedEntity : feedEntityList) {
                 updates.add(feedEntity.getTripUpdate());
             }
-            timetableSnapshotSource.applyTripUpdates(updates, agencyId);
+            timetableSnapshotSource.applyTripUpdates(graph, fullDataset, updates, agencyId);
             alertsUpdateHandler.update(feedMessage);
         } catch (Exception exception) {}
-
-        genericAStar = new GenericAStar();
-        if (isLongDistance()) {
-            pathService = new LongDistancePathService(null, genericAStar);
-        } else {
-            pathService = new RetryingPathServiceImpl(null, genericAStar);
-            genericAStar.setNPaths(1);
-        }
-        planGenerator = new PlanGenerator(null, pathService);
     }
 
     public Leg plan(long dateTime, String fromVertex, String toVertex, String onTripId,
@@ -123,27 +113,29 @@ public abstract class GtfsTest extends TestCase {
                String excludedRoute, String excludedStop, int legCount) {
         final TraverseMode mode = preferredMode != null ? preferredMode : TraverseMode.TRANSIT;
         RoutingRequest routingRequest = new RoutingRequest();
-
+        routingRequest.setNumItineraries(1);
+        
         routingRequest.setArriveBy(dateTime < 0);
         routingRequest.dateTime = Math.abs(dateTime);
         if (fromVertex != null && !fromVertex.isEmpty()) {
-            routingRequest.setFrom(new GenericLocation(null, agencyId + "_" + fromVertex));
+            routingRequest.from = (new GenericLocation(null, agencyId + ":" + fromVertex));
         }
         if (toVertex != null && !toVertex.isEmpty()) {
-            routingRequest.setTo(new GenericLocation(null, agencyId + "_" + toVertex));
+            routingRequest.to = new GenericLocation(null, agencyId + ":" + toVertex);
         }
         if (onTripId != null && !onTripId.isEmpty()) {
-            routingRequest.setStartingTransitTripId(new AgencyAndId(agencyId, onTripId));
+            routingRequest.startingTransitTripId = (new AgencyAndId(agencyId, onTripId));
         }
         routingRequest.setRoutingContext(graph);
         routingRequest.setWheelchairAccessible(wheelchairAccessible);
-        routingRequest.setTransferPenalty(preferLeastTransfers ? 300 : 0);
+        routingRequest.transferPenalty = (preferLeastTransfers ? 300 : 0);
         routingRequest.setModes(new TraverseModeSet(TraverseMode.WALK, mode));
+        // TODO route matcher still using underscores because it's quite nonstandard and should be eliminated from the 1.0 release rather than reworked
         if (excludedRoute != null && !excludedRoute.isEmpty()) {
             routingRequest.setBannedRoutes(agencyId + "__" + excludedRoute);
         }
         if (excludedStop != null && !excludedStop.isEmpty()) {
-            routingRequest.setBannedStopsHard(agencyId + "_" + excludedStop);
+            routingRequest.setBannedStopsHard(agencyId + ":" + excludedStop);
         }
         routingRequest.setOtherThanPreferredRoutesPenalty(0);
         // The walk board cost is set low because it interferes with test 2c1.
@@ -153,7 +145,8 @@ public abstract class GtfsTest extends TestCase {
         routingRequest.setWaitReluctance(1);
         routingRequest.setWalkBoardCost(30);
 
-        TripPlan tripPlan = planGenerator.generate(routingRequest);
+        List<GraphPath> paths = new GraphPathFinder(router).getPaths(routingRequest);
+        TripPlan tripPlan = GraphPathToTripPlanConverter.generatePlan(paths, routingRequest);
         // Stored in instance field for use in individual tests
         itinerary = tripPlan.itinerary.get(0);
 
@@ -177,7 +170,7 @@ public abstract class GtfsTest extends TestCase {
         if (alert != null) {
             assertNotNull(leg.alerts);
             assertEquals(1, leg.alerts.size());
-            assertEquals(alert, leg.alerts.get(0).alertHeaderText.getSomeTranslation());
+            assertEquals(alert, leg.alerts.get(0).getAlertHeaderText());
         } else {
             assertNull(leg.alerts);
         }

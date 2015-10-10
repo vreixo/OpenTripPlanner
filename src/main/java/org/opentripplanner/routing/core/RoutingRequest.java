@@ -13,6 +13,24 @@
 
 package org.opentripplanner.routing.core;
 
+import com.google.common.base.Objects;
+import org.onebusaway.gtfs.model.AgencyAndId;
+import org.onebusaway.gtfs.model.Route;
+import org.onebusaway.gtfs.model.Trip;
+import org.opentripplanner.api.parameter.QualifiedModeSet;
+import org.opentripplanner.common.MavenVersion;
+import org.opentripplanner.common.model.GenericLocation;
+import org.opentripplanner.common.model.NamedPlace;
+import org.opentripplanner.routing.graph.Edge;
+import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.routing.graph.Vertex;
+import org.opentripplanner.routing.request.BannedStopSet;
+import org.opentripplanner.routing.spt.DominanceFunction;
+import org.opentripplanner.routing.spt.ShortestPathTree;
+import org.opentripplanner.util.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,54 +42,28 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
-import com.google.common.base.Objects;
-import lombok.Getter;
-import lombok.Setter;
-
-import org.onebusaway.gtfs.model.AgencyAndId;
-import org.onebusaway.gtfs.model.Route;
-import org.onebusaway.gtfs.model.Trip;
-import org.opentripplanner.api.parameter.QualifiedModeSetSequence;
-import org.opentripplanner.common.MavenVersion;
-import org.opentripplanner.common.model.GenericLocation;
-import org.opentripplanner.common.model.NamedPlace;
-import org.opentripplanner.routing.graph.Edge;
-import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.graph.Vertex;
-import org.opentripplanner.routing.request.BannedStopSet;
-import org.opentripplanner.util.DateUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * A trip planning request. Some parameters may not be honored by the trip planner for some or all itineraries. For example, maxWalkDistance may be
- * relaxed if the alternative is to not provide a route.
- * 
- * NOTE this is the result of merging what used to be called a REQUEST and a TRAVERSEOPTIONS.
- * The Lombok Getter/Setter annotations serve to create getter and setter methods on all fields,
- * so defaults can be supplied in a PrototypeRoutingRequest bean via Spring.
+ * A trip planning request. Some parameters may not be honored by the trip planner for some or all itineraries.
+ * For example, maxWalkDistance may be relaxed if the alternative is to not provide a route.
+ *
+ * All defaults should be specified here in the RoutingRequest, NOT as annotations on query parameters in web services
+ * that create RoutingRequests. This establishes a priority chain for default values:
+ * RoutingRequest field initializers, then JSON router config, then query parameters.
  */
-@Getter @Setter 
 public class RoutingRequest implements Cloneable, Serializable {
 
     private static final long serialVersionUID = MavenVersion.VERSION.getUID();
 
     private static final Logger LOG = LoggerFactory.getLogger(RoutingRequest.class);
 
-    private static final int CLAMP_ITINERARIES = 3;
-
     /**
      * The model that computes turn/traversal costs.
-     * 
-     * TODO(flamholz): this is a weird place to inject this model. We do it here because, for historical reasons, this is 
-     * the most reasonable place to inject it.
+     * TODO: move this to the Router or the Graph if it doesn't clutter the code too much
      */
-    @Setter
-    private IntersectionTraversalCostModel traversalCostModel = new SimpleIntersectionTraversalCostModel();
+    public IntersectionTraversalCostModel traversalCostModel = new SimpleIntersectionTraversalCostModel();
 
     /* FIELDS UNIQUELY IDENTIFYING AN SPT REQUEST */
 
-    /* TODO no defaults should be set here, they should all be handled in one place (searchresource) */
     /** The complete list of incoming query parameters. */
     public final HashMap<String, String> parameters = new HashMap<String, String>();
 
@@ -79,18 +71,13 @@ public class RoutingRequest implements Cloneable, Serializable {
     public String routerId = "";
 
     /** The start location */
-    @Getter @Setter
     public GenericLocation from;
 
     /** The end location */
-    @Getter @Setter
     public GenericLocation to;
 
-    /** An unordered list of intermediate locations to be visited. */
-    @Getter @Setter
+    /** An ordered list of intermediate locations to be visited. */
     public List<GenericLocation> intermediatePlaces;
-
-    public boolean intermediatePlacesOrdered;
 
     /** The maximum distance (in meters) the user is willing to walk. Defaults to unlimited. */
     public double maxWalkDistance = Double.MAX_VALUE;
@@ -108,10 +95,13 @@ public class RoutingRequest implements Cloneable, Serializable {
     public double maxWeight = Double.MAX_VALUE;
 
     /** The set of TraverseModes that a user is willing to use. Defaults to WALK | TRANSIT. */
-    public TraverseModeSet modes = new TraverseModeSet("TRANSIT,WALK"); // defaults in constructor
+    public TraverseModeSet modes = new TraverseModeSet("TRANSIT,WALK"); // defaults in constructor overwrite this
 
     /** The set of characteristics that the user wants to optimize for -- defaults to QUICK, or optimize for transit time. */
     public OptimizeType optimize = OptimizeType.QUICK;
+    // TODO this should be completely removed and done only with individual cost parameters
+    // Also: apparently OptimizeType only affects BICYCLE mode traversal of street segments.
+    // If this is the case it should be very well documented and carried over into the Enum name.
 
     /** The epoch date/time that the trip should depart (or arrive, for requests where arriveBy is true) */
     public long dateTime = new Date().getTime() / 1000;
@@ -122,7 +112,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     /** Whether the trip must be wheelchair accessible. */
     public boolean wheelchairAccessible = false;
 
-    /** The maximum number of possible itineraries to return. */
+    /** The maximum number of itineraries to return. */
     public int numItineraries = 3;
 
     /** The maximum slope of streets for wheelchair trips. */
@@ -132,13 +122,13 @@ public class RoutingRequest implements Cloneable, Serializable {
     public boolean showIntermediateStops = false;
 
     /** max walk/bike speed along streets, in meters per second */
-    private double walkSpeed;
+    public double walkSpeed;
 
-    private double bikeSpeed;
+    public double bikeSpeed;
 
-    private double carSpeed;
+    public double carSpeed;
 
-    private Locale locale = new Locale("en", "US");
+    public Locale locale = new Locale("en", "US");
 
     /**
      * An extra penalty added on transfers (i.e. all boardings except the first one).
@@ -166,7 +156,6 @@ public class RoutingRequest implements Cloneable, Serializable {
     public double stairsReluctance = 2.0;
     
     /** Multiplicative factor on expected turning time. */
-    @Setter
     public double turnReluctance = 1.0;
 
     /**
@@ -207,6 +196,12 @@ public class RoutingRequest implements Cloneable, Serializable {
     /** Cost of dropping-off a rented bike */
     public int bikeRentalDropoffCost = 30;
 
+    /** Time to park a bike */
+    public int bikeParkTime = 60;
+
+    /** Cost of parking a bike. */
+    public int bikeParkCost = 120;
+
     /**
      * Time to park a car in a park and ride, w/o taking into account driving and walking cost
      * (time to park, switch off, pick your stuff, lock the car, etc...)
@@ -227,13 +222,13 @@ public class RoutingRequest implements Cloneable, Serializable {
     public double waitReluctance = 1.0;
 
     /** How much less bad is waiting at the beginning of the trip (replaces waitReluctance) */
-    public double waitAtBeginningFactor = 0.2;
+    public double waitAtBeginningFactor = 0.9;
 
     /** This prevents unnecessary transfers by adding a cost for boarding a vehicle. */
-    protected int walkBoardCost = 60 * 10;
+    public int walkBoardCost = 60 * 10;
 
     /** Separate cost for boarding a vehicle with a bicycle, which is more difficult than on foot. */
-    protected int bikeBoardCost = 60 * 10;
+    public int bikeBoardCost = 60 * 10;
 
     /** Do not use certain named routes */
     public RouteMatcher bannedRoutes = RouteMatcher.emptyMatcher();
@@ -245,10 +240,10 @@ public class RoutingRequest implements Cloneable, Serializable {
     public HashMap<AgencyAndId, BannedStopSet> bannedTrips = new HashMap<AgencyAndId, BannedStopSet>();
 
     /** Do not use certain stops. See for more information the bannedStops property in the RoutingResource class. */
-    private StopMatcher bannedStops = StopMatcher.emptyMatcher(); 
+    public StopMatcher bannedStops = StopMatcher.emptyMatcher(); 
     
     /** Do not use certain stops. See for more information the bannedStopsHard property in the RoutingResource class. */
-    private StopMatcher bannedStopsHard = StopMatcher.emptyMatcher(); 
+    public StopMatcher bannedStopsHard = StopMatcher.emptyMatcher(); 
     
     /** Set of preferred routes by user. */
     public RouteMatcher preferredRoutes = RouteMatcher.emptyMatcher();
@@ -279,12 +274,12 @@ public class RoutingRequest implements Cloneable, Serializable {
      * transfer timing information in transfers.txt
      */
     // initialize to zero so this does not inadvertently affect tests, and let Planner handle defaults
-    private int transferSlack = 0;
+    public int transferSlack = 0;
 
     /** Invariant: boardSlack + alightSlack <= transferSlack. */
-    private int boardSlack = 0;
+    public int boardSlack = 0;
 
-    private int alightSlack = 0;
+    public int alightSlack = 0;
 
     public int maxTransfers = 2;
 
@@ -322,12 +317,12 @@ public class RoutingRequest implements Cloneable, Serializable {
     /**
      * Whether or not bike rental availability information will be used to plan bike rental trips
      */
-    private boolean useBikeRentalAvailabilityInformation = false;
+    public boolean useBikeRentalAvailabilityInformation = false;
 
     /**
      * The maximum wait time in seconds the user is willing to delay trip start. Only effective in Analyst.
      */
-    public long clampInitialWait;
+    public long clampInitialWait = -1;
 
     /**
      * When true, reverse optimize this search on the fly whenever needed, rather than reverse-optimizing the entire path when it's done.
@@ -364,42 +359,60 @@ public class RoutingRequest implements Cloneable, Serializable {
     public boolean disableRemainingWeightHeuristic = false;
 
     /**
-     * The routing context used to actually carry out this search. It is important to build States from TraverseOptions rather than RoutingContexts,
-     * and just keep a reference to the context in the TraverseOptions, rather than using RoutingContexts for everything because in some testing and
-     * graph building situations we need to build a bunch of initial states with different times and vertices from a single TraverseOptions, without
-     * setting all the transit context or building temporary vertices (with all the exception-throwing checks that entails).
+     * The routing context used to actually carry out this search. It is important to build States from TraverseOptions
+     * rather than RoutingContexts,and just keep a reference to the context in the TraverseOptions, rather than using
+     * RoutingContexts for everything because in some testing and graph building situations we need to build a bunch of
+     * initial states with different times and vertices from a single TraverseOptions, without setting all the transit
+     * context or building temporary vertices (with all the exception-throwing checks that entails).
      * 
-     * While they are conceptually separate, TraverseOptions does maintain a reference to its accompanying RoutingContext (and vice versa) so that
-     * both do not need to be passed/injected separately into tight inner loops within routing algorithms. These references should be set to null when
-     * the request scope is torn down -- the routing context becomes irrelevant at that point, since temporary graph elements have been removed and
-     * the graph may have been reloaded.
+     * While they are conceptually separate, TraverseOptions does maintain a reference to its accompanying
+     * RoutingContext (and vice versa) so that both do not need to be passed/injected separately into tight inner loops
+     * within routing algorithms. These references should be set to null when the request scope is torn down -- the
+     * routing context becomes irrelevant at that point, since temporary graph elements have been removed and the graph
+     * may have been reloaded.
      */
     public RoutingContext rctx;
 
     /** A transit stop that this trip must start from */
-    private AgencyAndId startingTransitStopId;
+    public AgencyAndId startingTransitStopId;
     
     /** A trip where this trip must start from (depart-onboard routing) */
-    private AgencyAndId startingTransitTripId;
+    public AgencyAndId startingTransitTripId;
 
-    private boolean walkingBike;
+    public boolean walkingBike;
 
-    private double heuristicWeight = 1.0;
+    public double heuristicWeight = 1.0; // FIXME what is this for?
 
-    private boolean softWalkLimiting = true;
-    private boolean softPreTransitLimiting = true;
+    public boolean softWalkLimiting = true;
+    public boolean softPreTransitLimiting = true;
 
-    private double softWalkPenalty = 60.0; // a jump in cost when stepping over the walking limit
-    private double softWalkOverageRate = 5.0; // a jump in cost for every meter over the walking limit
+    public double softWalkPenalty = 60.0; // a jump in cost when stepping over the walking limit
+    public double softWalkOverageRate = 5.0; // a jump in cost for every meter over the walking limit
 
-    private double preTransitPenalty = 300.0; // a jump in cost when stepping over the pre-transit time limit
-    private double preTransitOverageRate = 10.0; // a jump in cost for every second over the pre-transit time limit
+    public double preTransitPenalty = 300.0; // a jump in cost when stepping over the pre-transit time limit
+    public double preTransitOverageRate = 10.0; // a jump in cost for every second over the pre-transit time limit
 
-    /* Additional flags affecting mode transitions. This is a temporary solution, as it only covers parking and rental at the beginning of the trip. */
+    /*
+      Additional flags affecting mode transitions.
+      This is a temporary solution, as it only covers parking and rental at the beginning of the trip.
+    */
     public boolean allowBikeRental = false;
     public boolean bikeParkAndRide = false;
     public boolean parkAndRide  = false;
     public boolean kissAndRide  = false;
+
+    /* Whether we are in "long-distance mode". This is currently a server-wide setting, but it could be made per-request. */
+    // TODO remove
+    public boolean longDistance = false;
+
+    /** Should traffic congestion be considered when driving? */
+    public boolean useTraffic = true;
+
+    /** The function that compares paths converging on the same vertex to decide which ones continue to be explored. */
+    public DominanceFunction dominanceFunction = new DominanceFunction.Pareto();
+
+    /** Accept only paths that use transit (no street-only paths). */
+    public boolean onlyTransitTrips = false;
 
     /* CONSTRUCTORS */
 
@@ -423,14 +436,14 @@ public class RoutingRequest implements Cloneable, Serializable {
         this.setModes(modes);
     }
 
-    public RoutingRequest(QualifiedModeSetSequence qmodes) {
+    public RoutingRequest(QualifiedModeSet qmodes) {
         this();
-        qmodes.applyToRequest(this);
+        qmodes.applyToRoutingRequest(this);
     }
 
     public RoutingRequest(String qmodes) {
         this();
-        new QualifiedModeSetSequence(qmodes).applyToRequest(this);
+        new QualifiedModeSet(qmodes).applyToRoutingRequest(this);
     }
 
     public RoutingRequest(TraverseMode mode) {
@@ -472,8 +485,10 @@ public class RoutingRequest implements Cloneable, Serializable {
     public void setModes(TraverseModeSet modes) {
         this.modes = modes;
         if (modes.getBicycle()) {
+            // This alternate routing request is used when we get off a bike to take a shortcut and are
+            // walking alongside the bike. FIXME why are we only copying certain fields instead of cloning the request?
             bikeWalkingOptions = new RoutingRequest();
-            bikeWalkingOptions.setArriveBy(this.isArriveBy());
+            bikeWalkingOptions.setArriveBy(this.arriveBy);
             bikeWalkingOptions.maxWalkDistance = maxWalkDistance;
             bikeWalkingOptions.maxPreTransitTime = maxPreTransitTime;
             bikeWalkingOptions.walkSpeed = walkSpeed * 0.8; // walking bikes is slow
@@ -485,9 +500,10 @@ public class RoutingRequest implements Cloneable, Serializable {
             bikeWalkingOptions.walkingBike = true;
             bikeWalkingOptions.bikeSwitchTime = bikeSwitchTime;
             bikeWalkingOptions.bikeSwitchCost = bikeSwitchCost;
-        } else if (modes.getDriving()) {
+            bikeWalkingOptions.stairsReluctance = stairsReluctance * 5; // carrying bikes on stairs is awful
+        } else if (modes.getCar()) {
             bikeWalkingOptions = new RoutingRequest();
-            bikeWalkingOptions.setArriveBy(this.isArriveBy());
+            bikeWalkingOptions.setArriveBy(this.arriveBy);
             bikeWalkingOptions.maxWalkDistance = maxWalkDistance;
             bikeWalkingOptions.maxPreTransitTime = maxPreTransitTime;
             bikeWalkingOptions.modes = modes.clone();
@@ -504,6 +520,8 @@ public class RoutingRequest implements Cloneable, Serializable {
     public void setWheelchairAccessible(boolean wheelchairAccessible) {
         this.wheelchairAccessible = wheelchairAccessible;
     }
+
+
 
     /**
      * only allow traversal by the specified mode; don't allow walking bikes. This is used during contraction to reduce the number of possible paths.
@@ -537,12 +555,13 @@ public class RoutingRequest implements Cloneable, Serializable {
     }
     
     /** @return the (soft) maximum walk distance */
-    // If transit is not to be used, disable walk limit.
+    // If transit is not to be used and this is a point to point search
+    // or one with soft walk limiting, disable walk limit.
     public double getMaxWalkDistance() {
-        if (!getModes().isTransit()) {
-            return Double.MAX_VALUE;
-        } else {
+        if (modes.isTransit() || (batch && !softWalkLimiting)) {
             return maxWalkDistance;
+        } else {
+            return Double.MAX_VALUE;            
         }
     }
     
@@ -625,24 +644,6 @@ public class RoutingRequest implements Cloneable, Serializable {
 
     public final static int MIN_SIMILARITY = 1000;
 
-    public int similarity(RoutingRequest options) {
-        int s = 0;
-
-        // TODO Check this: perfect equality between non-transit modes.
-        // For partial equality, should we return a smaller similarity score?
-        if (getModes().getNonTransitSet().equals(options.getModes().getNonTransitSet())) {
-            s += 1000;
-        }
-        if (optimize == options.optimize) {
-            s += 700;
-        }
-        if (wheelchairAccessible == options.wheelchairAccessible) {
-            s += 500;
-        }
-
-        return s;
-    }
-
     public void setFromString(String from) {
         this.from = GenericLocation.fromOldStyleString(from);
     }
@@ -688,7 +689,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     }
 
     public int getNumItineraries() { 
-        if (getModes().isTransit()) {
+        if (modes.isTransit()) {
             return numItineraries;
         } else {
             // If transit is not to be used, only search for one itinerary.
@@ -697,16 +698,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     }
 
     public void setNumItineraries(int numItineraries) {
-        if (numItineraries > CLAMP_ITINERARIES) {
-            numItineraries = CLAMP_ITINERARIES;
-        } else if (numItineraries < 1) {
-            numItineraries = 1;
-        }
         this.numItineraries = numItineraries;
-    }
-
-    public String toHtmlString() {
-        return toString("<br/>");
     }
 
     public String toString() {
@@ -714,8 +706,8 @@ public class RoutingRequest implements Cloneable, Serializable {
     }
 
     public String toString(String sep) {
-        return getFrom() + sep + getTo() + sep + getMaxWalkDistance() + sep + getDateTime() + sep
-                + isArriveBy() + sep + getOptimize() + sep + modes.getAsStr() + sep
+        return from + sep + to + sep + getMaxWalkDistance() + sep + getDateTime() + sep
+                + arriveBy + sep + optimize + sep + modes.getAsStr() + sep
                 + getNumItineraries();
     }
 
@@ -756,14 +748,6 @@ public class RoutingRequest implements Cloneable, Serializable {
         }
         this.intermediatePlaces.add(location);
     }
-    
-    /**
-     * Returns true if intermediate places are marked ordered, or there is only one of them.
-     */
-    public boolean intermediatesEffectivelyOrdered() {
-        boolean exactlyOneIntermediate = (this.intermediatePlaces != null && this.intermediatePlaces.size() == 1);
-        return this.intermediatePlacesOrdered || exactlyOneIntermediate;
-    }
 
     public void setTriangleSafetyFactor(double triangleSafetyFactor) {
         this.triangleSafetyFactor = triangleSafetyFactor;
@@ -778,13 +762,6 @@ public class RoutingRequest implements Cloneable, Serializable {
     public void setTriangleTimeFactor(double triangleTimeFactor) {
         this.triangleTimeFactor = triangleTimeFactor;
         bikeWalkingOptions.triangleTimeFactor = triangleTimeFactor;
-    }
-
-    public void setMaxTransfers(int maxTransfers) {
-        // if (maxTransfers > CLAMP_TRANSFERS) {
-        // maxTransfers = CLAMP_TRANSFERS;
-        // }
-        this.maxTransfers = maxTransfers;
     }
 
     public NamedPlace getFromPlace() {
@@ -819,7 +796,7 @@ public class RoutingRequest implements Cloneable, Serializable {
 
     public RoutingRequest reversedClone() {
         RoutingRequest ret = this.clone();
-        ret.setArriveBy(!ret.isArriveBy());
+        ret.setArriveBy(!ret.arriveBy);
         ret.reverseOptimizing = !ret.reverseOptimizing; // this is not strictly correct
         ret.useBikeRentalAvailabilityInformation = false;
         return ret;
@@ -897,7 +874,7 @@ public class RoutingRequest implements Cloneable, Serializable {
         }
         return endpointsMatch
                 && dateTime == other.dateTime
-                && isArriveBy() == other.isArriveBy()
+                && arriveBy == other.arriveBy
                 && numItineraries == other.numItineraries // should only apply in non-batch?
                 && walkSpeed == other.walkSpeed
                 && bikeSpeed == other.bikeSpeed
@@ -905,7 +882,7 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && maxWeight == other.maxWeight
                 && worstTime == other.worstTime
                 && maxTransfers == other.maxTransfers
-                && getModes().equals(other.getModes())
+                && modes.equals(other.modes)
                 && wheelchairAccessible == other.wheelchairAccessible
                 && optimize.equals(other.optimize)
                 && maxWalkDistance == other.maxWalkDistance
@@ -947,7 +924,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && reverseOptimizeOnTheFly == other.reverseOptimizeOnTheFly
                 && ignoreRealtimeUpdates == other.ignoreRealtimeUpdates
                 && disableRemainingWeightHeuristic == other.disableRemainingWeightHeuristic
-                && Objects.equal(startingTransitTripId, other.startingTransitTripId);
+                && Objects.equal(startingTransitTripId, other.startingTransitTripId)
+                && useTraffic == other.useTraffic;
     }
 
     /**
@@ -958,8 +936,8 @@ public class RoutingRequest implements Cloneable, Serializable {
     public int hashCode() {
         int hashCode = new Double(walkSpeed).hashCode() + new Double(bikeSpeed).hashCode()
                 + new Double(carSpeed).hashCode() + new Double(maxWeight).hashCode()
-                + (int) (worstTime & 0xffffffff) + getModes().hashCode()
-                + (isArriveBy() ? 8966786 : 0) + (wheelchairAccessible ? 731980 : 0)
+                + (int) (worstTime & 0xffffffff) + modes.hashCode()
+                + (arriveBy ? 8966786 : 0) + (wheelchairAccessible ? 731980 : 0)
                 + optimize.hashCode() + new Double(maxWalkDistance).hashCode()
                 + new Double(transferPenalty).hashCode() + new Double(maxSlope).hashCode()
                 + new Double(walkReluctance).hashCode() + new Double(waitReluctance).hashCode()
@@ -975,7 +953,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 + new Long(clampInitialWait).hashCode() * 209477
                 + new Boolean(reverseOptimizeOnTheFly).hashCode() * 95112799
                 + new Boolean(ignoreRealtimeUpdates).hashCode() * 154329
-                + new Boolean(disableRemainingWeightHeuristic).hashCode() * 193939;
+                + new Boolean(disableRemainingWeightHeuristic).hashCode() * 193939
+                + new Boolean(useTraffic).hashCode() * 10169;
         if (batch) {
             hashCode *= -1;
             // batch mode, only one of two endpoints matters
@@ -998,8 +977,8 @@ public class RoutingRequest implements Cloneable, Serializable {
         if (this.rctx == null)
             LOG.warn("routing context was not set, cannot destroy it.");
         else {
-            int nRemoved = this.rctx.destroy();
-            LOG.debug("routing context destroyed ({} temporary edges removed)", nRemoved);
+            rctx.destroy();
+            LOG.debug("routing context destroyed");
         }
     }
 
@@ -1015,8 +994,6 @@ public class RoutingRequest implements Cloneable, Serializable {
             return bikeSpeed;
         case CAR:
             return carSpeed;
-        case CUSTOM_MOTOR_VEHICLE:
-            return carSpeed;
         default:
             break;
         }
@@ -1026,7 +1003,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     /** @return The highest speed for all possible road-modes. */
     public double getStreetSpeedUpperBound() {
         // Assume carSpeed > bikeSpeed > walkSpeed
-        if (modes.getDriving())
+        if (modes.getCar())
             return carSpeed;
         if (modes.getBicycle())
             return bikeSpeed;
@@ -1063,38 +1040,6 @@ public class RoutingRequest implements Cloneable, Serializable {
             builder.setLength(builder.length() - 1);
         }
         return builder.toString();
-    }
-
-    public String getPreferredRouteStr() {
-        return preferredRoutes.asString();
-    }
-    
-    public String getPreferredAgenciesStr() {
-        return getRouteOrAgencyStr(preferredAgencies);
-    }
-
-    public String getUnpreferredRouteStr() {
-        return unpreferredRoutes.asString();
-    }
-    
-    public String getUnpreferredAgenciesStr() {
-        return getRouteOrAgencyStr(unpreferredAgencies);
-    }
-
-    public String getBannedRouteStr() {
-        return bannedRoutes.asString();
-    }
-
-    public String getBannedStopsStr() {
-        return bannedStops.asString();
-    }
-    
-    public String getBannedStopsHardStr() {
-        return bannedStopsHard.asString();
-    }
-    
-    public String getBannedAgenciesStr() {
-        return getRouteOrAgencyStr(bannedAgencies);
     }
 
     public void setMaxWalkDistance(double maxWalkDistance) {
@@ -1181,4 +1126,38 @@ public class RoutingRequest implements Cloneable, Serializable {
         return preferences_penalty;
     }
 
+    /**
+     * Get the maximum expected speed over all transit modes.
+     * TODO derive actual speeds from GTFS feeds. On the other hand, that's what the bidirectional heuristic does on the fly.
+     */
+    public double getTransitSpeedUpperBound() {
+        if (modes.contains(TraverseMode.RAIL)) {
+            return 84; // 300kph typical peak speed of a TGV
+        }
+        if (modes.contains(TraverseMode.CAR)) {
+            return 40; // 130kph max speed of a car on a highway
+        }
+        // Considering that buses can travel on highways, return the same max speed for all other transit.
+        return 40; // TODO find accurate max speeds
+    }
+
+    /**
+     * Sets the bicycle triangle routing parameters -- the relative importance of safety, flatness, and speed.
+     * These three fields of the RoutingRequest should have values between 0 and 1, and should add up to 1.
+     * This setter function accepts any three numbers and will normalize them to add up to 1.
+     */
+    public void setTriangleNormalized (double safe, double slope, double time) {
+        double total = safe + slope + time;
+        safe /= total;
+        slope /= total;
+        time /= total;
+        this.triangleSafetyFactor = safe;
+        this.triangleSlopeFactor = slope;
+        this.triangleTimeFactor = time;
+    }
+
+    /** Create a new ShortestPathTree instance using the DominanceFunction specified in this RoutingRequest. */
+    public ShortestPathTree getNewShortestPathTree() {
+        return this.dominanceFunction.getNewShortestPathTree(this);
+    }
 }

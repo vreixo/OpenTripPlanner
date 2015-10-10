@@ -20,11 +20,8 @@ import java.util.EnumSet;
 import org.opentripplanner.routing.core.TraverseMode;
 import org.opentripplanner.routing.core.TraverseModeSet;
 
-import lombok.Getter;
-
 /**
  * Who can traverse a street in a single direction.
- * 
  */
 public enum StreetTraversalPermission {
     NONE(0),
@@ -34,28 +31,16 @@ public enum StreetTraversalPermission {
     CAR(4),
     PEDESTRIAN_AND_CAR(4 | 1),
     BICYCLE_AND_CAR(4 | 2),
-    PEDESTRIAN_AND_BICYCLE_AND_CAR(4 | 2 | 1),
-    // This is a configurable motor vehicle that is not a vanilla car.
-    // e.g. truck, motor bike, etc.
-    CUSTOM_MOTOR_VEHICLE(8),
-    PEDESTRIAN_AND_CUSTOM_MOTOR_VEHICLE(8 | 1),
-    BICYCLE_AND_CUSTOM_MOTOR_VEHICLE(8 | 2),
-    PEDESTRIAN_BICYCLE_MOTOR(8 | 2 | 1),
-    ALL_DRIVING(8 | 4),
-    PEDESTRIAN_AND_DRIVING(8 | 4 | 1),
-    BICYCLE_AND_DRIVING(8 | 4 | 2),
-    ALL(8 | 4 | 2 | 1),
-    CROSSHATCHED(16); // this street exists in both Beszel and Ul Qoma; traffic direction may depend on which city you're in.
+    ALL(4 | 2 | 1);
 
     private static final Map<Integer, StreetTraversalPermission> lookup = new HashMap<Integer, StreetTraversalPermission>();
 
     static {
         for (StreetTraversalPermission s : EnumSet.allOf(StreetTraversalPermission.class))
-            lookup.put(s.getCode(), s);
+            lookup.put(s.code, s);
     }
 
-    @Getter
-    private int code;
+    public int code;
 
     private StreetTraversalPermission(int code) {
         this.code = code;
@@ -66,11 +51,11 @@ public enum StreetTraversalPermission {
     }
 
     public StreetTraversalPermission add(StreetTraversalPermission perm) {
-        return get(this.getCode() | perm.getCode());
+        return get(this.code | perm.code);
     }
 
     public StreetTraversalPermission remove(StreetTraversalPermission perm) {
-        return get(this.getCode() & ~perm.getCode());
+        return get(this.code & ~perm.code);
     }
 
     public StreetTraversalPermission modify(boolean permissive, StreetTraversalPermission perm) {
@@ -82,9 +67,7 @@ public enum StreetTraversalPermission {
     }
     
     /**
-     * Returns true if any of these modes are allowed.
-     * @param modes
-     * @return
+     * Returns true if any of the specified modes are allowed to use this street.
      */
     public boolean allows(TraverseModeSet modes) {
         if (modes.getWalk() && allows(StreetTraversalPermission.PEDESTRIAN)) {
@@ -93,17 +76,12 @@ public enum StreetTraversalPermission {
             return true;
         } else if (modes.getCar() && allows(StreetTraversalPermission.CAR)) {
             return true;
-        } else if (modes.getCustomMotorVehicle()
-                && allows(StreetTraversalPermission.CUSTOM_MOTOR_VEHICLE)) {
-            return true;
         }
         return false;
     }
     
     /**
-     * Returns true if this mode is allowed.
-     * @param mode
-     * @return
+     * Returns true if the given mode is allowed to use this street.
      */
     public boolean allows(TraverseMode mode) {
         if (mode == TraverseMode.WALK && allows(StreetTraversalPermission.PEDESTRIAN)) {
@@ -112,16 +90,12 @@ public enum StreetTraversalPermission {
             return true;
         } else if (mode == TraverseMode.CAR && allows(StreetTraversalPermission.CAR)) {
             return true;
-        } else if (mode == TraverseMode.CUSTOM_MOTOR_VEHICLE
-                && allows(StreetTraversalPermission.CUSTOM_MOTOR_VEHICLE)) {
-            return true;
         }
         return false;
     }
 
     /**
      * Returns true if there are any modes allowed by this permission.
-     * @return
      */
     public boolean allowsAnything() {
         return !this.allowsNothing();
@@ -129,7 +103,6 @@ public enum StreetTraversalPermission {
     
     /**
      * Returns true if there no modes are by this permission.
-     * @return
      */
     public boolean allowsNothing() {
         // TODO(flamholz): what about CROSSHATCHED?

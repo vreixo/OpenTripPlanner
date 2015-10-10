@@ -22,8 +22,6 @@ import org.opentripplanner.common.geometry.DelaunayIsolineBuilder;
 import org.opentripplanner.common.geometry.IsolineBuilder.ZMetric;
 import org.opentripplanner.common.geometry.ZSampleGrid;
 import org.opentripplanner.routing.core.RoutingRequest;
-import org.opentripplanner.routing.services.GraphService;
-import org.opentripplanner.routing.services.SPTService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,13 +35,9 @@ public class IsoChroneSPTRendererAccSampling implements IsoChroneSPTRenderer {
     private static final Logger LOG = LoggerFactory
             .getLogger(IsoChroneSPTRendererAccSampling.class);
 
-    private GraphService graphService;
-    private SPTService sptService;
     private SampleGridRenderer sampleGridRenderer;
 
-    public IsoChroneSPTRendererAccSampling(GraphService graphService, SPTService sptService, SampleGridRenderer sampleGridRenderer) {
-        this.graphService = graphService;
-        this.sptService = sptService;
+    public IsoChroneSPTRendererAccSampling(SampleGridRenderer sampleGridRenderer) {
         this.sampleGridRenderer = sampleGridRenderer;
     }
 
@@ -56,14 +50,14 @@ public class IsoChroneSPTRendererAccSampling implements IsoChroneSPTRenderer {
     public List<IsochroneData> getIsochrones(IsoChroneRequest isoChroneRequest,
             RoutingRequest sptRequest) {
 
-        final double D0 = sampleGridRenderer.getOffRoadDistanceMeters(isoChroneRequest
-                .getPrecisionMeters());
+        final double offRoadDistanceMeters = isoChroneRequest.offRoadDistanceMeters;
 
         // 1. Create a sample grid from the SPT, using the TimeGridRenderer
         SampleGridRequest tgRequest = new SampleGridRequest();
-        tgRequest.setMaxTimeSec(isoChroneRequest.getMaxTimeSec());
-        tgRequest.setPrecisionMeters(isoChroneRequest.getPrecisionMeters());
-        tgRequest.setCoordinateOrigin(isoChroneRequest.getCoordinateOrigin());
+        tgRequest.maxTimeSec = isoChroneRequest.maxTimeSec;
+        tgRequest.precisionMeters = isoChroneRequest.precisionMeters;
+        tgRequest.offRoadDistanceMeters = isoChroneRequest.offRoadDistanceMeters;
+        tgRequest.coordinateOrigin = isoChroneRequest.coordinateOrigin;
         ZSampleGrid<WTWD> sampleGrid = sampleGridRenderer.getSampleGrid(tgRequest, sptRequest);
 
         // 2. Compute isolines
@@ -101,18 +95,18 @@ public class IsoChroneSPTRendererAccSampling implements IsoChroneSPTRenderer {
         };
         DelaunayIsolineBuilder<WTWD> isolineBuilder = new DelaunayIsolineBuilder<WTWD>(
                 sampleGrid.delaunayTriangulate(), zMetric);
-        isolineBuilder.setDebug(isoChroneRequest.isIncludeDebugGeometry());
+        isolineBuilder.setDebug(isoChroneRequest.includeDebugGeometry);
 
         List<IsochroneData> isochrones = new ArrayList<IsochroneData>();
-        for (Integer cutoffSec : isoChroneRequest.getCutoffSecList()) {
+        for (Integer cutoffSec : isoChroneRequest.cutoffSecList) {
             WTWD z0 = new WTWD();
             z0.w = 1.0;
             z0.wTime = cutoffSec;
-            z0.d = D0;
+            z0.d = offRoadDistanceMeters;
             IsochroneData isochrone = new IsochroneData(cutoffSec,
                     isolineBuilder.computeIsoline(z0));
-            if (isoChroneRequest.isIncludeDebugGeometry())
-                isochrone.setDebugGeometry(isolineBuilder.getDebugGeometry());
+            if (isoChroneRequest.includeDebugGeometry)
+                isochrone.debugGeometry = isolineBuilder.getDebugGeometry();
             isochrones.add(isochrone);
         }
 

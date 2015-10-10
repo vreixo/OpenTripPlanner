@@ -20,14 +20,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.ZipFile;
 
-import lombok.Getter;
-import lombok.Setter;
-
 import org.apache.http.client.ClientProtocolException;
 import org.onebusaway.csv_entities.CsvInputSource;
 import org.onebusaway.csv_entities.FileCsvInputSource;
 import org.onebusaway.csv_entities.ZipFileCsvInputSource;
-import org.opentripplanner.graph_builder.impl.DownloadableGtfsInputSource;
+import org.opentripplanner.graph_builder.module.DownloadableGtfsInputSource;
 import org.opentripplanner.util.HttpUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,27 +49,23 @@ public class GtfsBundle {
      * Create direct transfers between the constituent stops of each parent station.
      * This is different from "linking stops to parent stations" below.
      */
-    @Getter @Setter
-    private boolean parentStationTransfers = false;
+    public boolean parentStationTransfers = false;
 
     /** 
      * Connect parent station vertices to their constituent stops to allow beginning and 
      * ending paths (itineraries) at them. 
      */
-    @Getter @Setter
-    private boolean linkStopsToParentStations = false;
+    public boolean linkStopsToParentStations = false;
 
     private Map<String, String> agencyIdMappings = new HashMap<String, String>();
 
-    private int defaultStreetToStopTime;
+    public int subwayAccessTime;
 
     private double maxStopToShapeSnapDistance = 150;
 
-    @Getter @Setter 
-    private Boolean useCached = null; // null means use global default from GtfsGB || true
+    public Boolean useCached = null; // null means use global default from GtfsGB || true
 
-    @Getter @Setter 
-    private File cacheDirectory = null; // null means use default from GtfsGB || system temp dir 
+    public File cacheDirectory = null; // null means use default from GtfsGB || system temp dir 
 
     public GtfsBundle() {
     }
@@ -111,7 +104,7 @@ public class GtfsBundle {
                 if (cacheDirectory != null)
                     isrc.setCacheDirectory(cacheDirectory);
                 if (useCached != null)
-                    isrc.setUseCached(useCached);
+                    isrc.useCached = useCached;
                 csvInputSource = isrc;
             }
         }
@@ -189,14 +182,6 @@ public class GtfsBundle {
         this.transfersTxtDefinesStationPaths = transfersTxtDefinesStationPaths;
     }
 
-    public int getDefaultStreetToStopTime() {
-        return defaultStreetToStopTime;
-    }
-
-    public void setDefaultStreetToStopTime(int time) {
-        defaultStreetToStopTime = time;
-    }
-    
     public void checkInputs() {
         if (csvInputSource != null) {
             LOG.warn("unknown CSV source type; cannot check inputs");

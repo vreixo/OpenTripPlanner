@@ -23,24 +23,26 @@ import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.common.pqueue.BinHeap;
-import org.opentripplanner.routing.spt.BasicShortestPathTree;
+import org.opentripplanner.routing.spt.DominanceFunction;
 import org.opentripplanner.routing.spt.ShortestPathTree;
-import org.opentripplanner.routing.spt.ShortestPathTreeFactory;
 
 /**
  * Find the shortest path between graph vertices using Dijkstra's algorithm.
+ *
+ * TODO do we need this since we have GenericAStar and trivial remaining weight heuristic?
+ * It is used in pruning Area edges and in finding the distance to transit stops.
  */
 public class GenericDijkstra {
 
     private RoutingRequest options;
 
-    private ShortestPathTreeFactory shortestPathTreeFactory;
+    public SearchTerminationStrategy searchTerminationStrategy;
 
-    private SearchTerminationStrategy searchTerminationStrategy;
+    public SkipEdgeStrategy skipEdgeStrategy;
 
-    private SkipEdgeStrategy skipEdgeStrategy;
+    public SkipTraverseResultStrategy skipTraverseResultStrategy;
 
-    private SkipTraverseResultStrategy skipTraverseResultStrategy;
+    public TraverseVisitor traverseVisitor;
 
     private boolean verbose = false;
 
@@ -48,10 +50,6 @@ public class GenericDijkstra {
 
     public GenericDijkstra(RoutingRequest options) {
         this.options = options;
-    }
-
-    public void setShortestPathTreeFactory(ShortestPathTreeFactory shortestPathTreeFactory) {
-        this.shortestPathTreeFactory = shortestPathTreeFactory;
     }
 
     public void setSearchTerminationStrategy(SearchTerminationStrategy searchTerminationStrategy) {
@@ -71,7 +69,7 @@ public class GenericDijkstra {
         if (options.rctx != null) {
             target = initialState.getOptions().rctx.target;
         }
-        ShortestPathTree spt = createShortestPathTree(options);
+        ShortestPathTree spt = new DominanceFunction.MinimumWeight().getNewShortestPathTree(options);
         BinHeap<State> queue = new BinHeap<State>(1000);
 
         spt.add(initialState);
@@ -80,6 +78,10 @@ public class GenericDijkstra {
         while (!queue.empty()) { // Until the priority queue is empty:
             State u = queue.extract_min();
             Vertex u_vertex = u.getVertex();
+
+            if (traverseVisitor != null) {
+                traverseVisitor.visitVertex(u);
+            }
 
             if (!spt.getStates(u_vertex).contains(u)) {
                 continue;
@@ -90,50 +92,39 @@ public class GenericDijkstra {
                 System.out.println(u_vertex);
             }
 
-            if (searchTerminationStrategy != null
-                    && !searchTerminationStrategy.shouldSearchContinue(initialState.getVertex(), 
-                    null, u, spt, options))
-                        break;
+            if (searchTerminationStrategy != null &&
+                searchTerminationStrategy.shouldSearchTerminate(initialState.getVertex(), null, u, spt, options)) {
+                break;
+            }
 
-            for (Edge edge : options.isArriveBy() ? u_vertex.getIncoming() : u_vertex.getOutgoing()) {
-
-                if (skipEdgeStrategy != null
-                        && skipEdgeStrategy.shouldSkipEdge(initialState.getVertex(), null, u, edge, spt,
-                                options))
+            for (Edge edge : options.arriveBy ? u_vertex.getIncoming() : u_vertex.getOutgoing()) {
+                if (skipEdgeStrategy != null &&
+                    skipEdgeStrategy.shouldSkipEdge(initialState.getVertex(), null, u, edge, spt, options)) {
                     continue;
-
+                }
                 // Iterate over traversal results. When an edge leads nowhere (as indicated by
                 // returning NULL), the iteration is over.
                 for (State v = edge.traverse(u); v != null; v = v.getNextResult()) {
-
-                    if (skipTraverseResultStrategy != null
-                            && skipTraverseResultStrategy.shouldSkipTraversalResult(initialState.getVertex(),
-                                    null, u, v, spt, options))
+                    if (skipTraverseResultStrategy != null &&
+                        skipTraverseResultStrategy.shouldSkipTraversalResult(initialState.getVertex(), null, u, v, spt, options)) {
                         continue;
-
-                    if (verbose)
-                        System.out.printf("  w = %f + %f = %f %s", u.getWeight(), v.getWeightDelta(), 
-                        		v.getWeight(),  v.getVertex());
-                    
-                    if (v.exceedsWeightLimit(options.maxWeight))
-                        continue;
-
-                    if (spt.add(v)) {
-                        double estimate = heuristic.computeForwardWeight(v, target);
-                        queue.insert(v, v.getWeight() + estimate);
                     }
-
+                    if (traverseVisitor != null) {
+                        traverseVisitor.visitEdge(edge, v);
+                    }
+                    if (verbose) {
+                        System.out.printf("  w = %f + %f = %f %s", u.getWeight(), v.getWeightDelta(), v.getWeight(), v.getVertex());
+                    }
+                    if (v.exceedsWeightLimit(options.maxWeight)) continue;
+                    if (spt.add(v)) {
+                        double estimate = heuristic.estimateRemainingWeight(v);
+                        queue.insert(v, v.getWeight() + estimate);
+                        if (traverseVisitor != null) traverseVisitor.visitEnqueue(v);
+                    }
                 }
             }
-            spt.postVisit(u);
         }
         return spt;
-    }
-
-    protected ShortestPathTree createShortestPathTree(RoutingRequest options) {
-        if (shortestPathTreeFactory != null)
-            return shortestPathTreeFactory.create(options);
-        return new BasicShortestPathTree(options);
     }
 
     public void setHeuristic(RemainingWeightHeuristic heuristic) {

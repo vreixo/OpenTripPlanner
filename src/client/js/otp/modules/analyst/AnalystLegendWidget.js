@@ -22,7 +22,8 @@ otp.modules.analyst.AnalystLegendWidget =
     
     initialize : function(id, module, width, height) {
         otp.widgets.Widget.prototype.initialize.call(this, id, module, {
-            title : otp.config.locale.widgets.AnalystLegend.title,
+            //TRANSLATORS: Legend title in Analyst
+            title : _tr("Legend : travel time in minutes"),
             cssClass : 'otp-analyst-legendWidget'
         });
         
@@ -37,7 +38,7 @@ otp.modules.analyst.AnalystLegendWidget =
     },
     
     refresh : function(params) {
-	    this.img.attr('src', otp.config.hostname+'/' + otp.config.restService + '/analyst/legend.png?width='
+	    this.img.attr('src', otp.config.hostname+ '/otp/analyst/legend.png?width='
        + this.imgWidth+'&height=' + this.imgHeight + '&styles=' + params.styles);
     }
 });

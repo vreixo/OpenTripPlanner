@@ -36,8 +36,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import lombok.AllArgsConstructor;
-
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureStore;
@@ -53,17 +51,17 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opentripplanner.api.common.RoutingResource;
-import org.opentripplanner.routing.algorithm.EarliestArrivalSPTService;
+import org.opentripplanner.routing.algorithm.EarliestArrivalSearch;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.edgetype.StreetTransitLink;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graph.Vertex;
-import org.opentripplanner.routing.services.SPTService;
 import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.opentripplanner.routing.vertextype.IntersectionVertex;
 import org.opentripplanner.routing.vertextype.StreetVertex;
 import org.opentripplanner.routing.vertextype.TransitStop;
+import org.opentripplanner.standalone.Router;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +95,7 @@ public class SimpleIsochrone extends RoutingResource {
     
     private static final Logger LOG = LoggerFactory.getLogger(SimpleIsochrone.class);
 
-    private static final SPTService sptService = new EarliestArrivalSPTService();
+    private static final EarliestArrivalSearch sptService = new EarliestArrivalSearch();
 
     /* Parameters shared between all methods. */
     @QueryParam("requestSpacingMinutes") @DefaultValue("30") 
@@ -160,10 +158,11 @@ public class SimpleIsochrone extends RoutingResource {
     /** @return a map from each vertex to minimum travel time over the course of the day. */
     private Map<Vertex, Double> makePoints () throws Exception {
         rangeCheckParameters();
-        request = buildRequest(0);
-        Graph graph = otpServer.graphService.getGraph();
+        request = buildRequest();
+        Router router = otpServer.getRouter(routerId);
+        Graph graph = router.graph;
         //double speed = request.getWalkSpeed();
-        Coordinate originCoord = request.getFrom().getCoordinate();
+        Coordinate originCoord = request.from.getCoordinate();
         if (originCoord == null) return null;
         List<TransitStop> stops = graph.streetIndex.getNearbyTransitStops(originCoord, radiusMeters);
         if (stops.isEmpty()) {
@@ -181,7 +180,7 @@ public class SimpleIsochrone extends RoutingResource {
         
         /* Make one request every M minutes over H hours */
         int nRequests = (requestTimespanHours * 60) / requestSpacingMinutes;
-        request.setClampInitialWait(requestSpacingMinutes * 60);
+        request.clampInitialWait = (requestSpacingMinutes * 60);
         Date date = request.getDateTime();
         MinMap<Vertex, Double> points = new MinMap<Vertex, Double>();
         for (int r = 0; r < nRequests; r++) {
@@ -222,7 +221,7 @@ public class SimpleIsochrone extends RoutingResource {
             for (Map.Entry<Vertex, Double> vertexSeconds : points.entrySet()) {
                 double remainingSeconds = thresholdSeconds - vertexSeconds.getValue();
                 if (remainingSeconds > 60) { // avoid degenerate geometries
-                    double remainingMeters = remainingSeconds * request.getWalkSpeed();
+                    double remainingMeters = remainingSeconds * request.walkSpeed;
                     Geometry point = geomf.createPoint(vertexSeconds.getKey().getCoordinate());
                     point = JTS.transform(point, toMeters);
                     Geometry buffer = point.buffer(remainingMeters);
@@ -323,9 +322,13 @@ public class SimpleIsochrone extends RoutingResource {
         }
     }   
     
-    @AllArgsConstructor
     private static class DirectoryZipper implements StreamingOutput {
         private File directory;
+        
+        DirectoryZipper(File directory){
+        	this.directory = directory;
+        }
+        
         @Override
         public void write(OutputStream outStream) throws IOException {
             ZipOutputStream zip = new ZipOutputStream(outStream);
@@ -339,7 +342,11 @@ public class SimpleIsochrone extends RoutingResource {
         }
     }
 
-    /** A HashMap that has been extended to track the greatest or smallest value for each key. */
+    /**
+     * A HashMap that has been extended to track the greatest or smallest value for each key.
+     * Note that this does not change the meaning of the 'put' method. It adds two new methods that add the min/max
+     * behavior.
+     */
     public static class MinMap<K, V extends Comparable<V>> extends HashMap<K, V> {
         private static final long serialVersionUID = -23L;
 

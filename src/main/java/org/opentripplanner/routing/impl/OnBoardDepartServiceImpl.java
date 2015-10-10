@@ -17,7 +17,6 @@ import java.util.List;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Trip;
-import org.opentripplanner.common.geometry.DistanceLibrary;
 import org.opentripplanner.common.geometry.GeometryUtils;
 import org.opentripplanner.common.geometry.SphericalDistanceLibrary;
 import org.opentripplanner.common.model.P2;
@@ -61,12 +60,12 @@ public class OnBoardDepartServiceImpl implements OnBoardDepartService {
 
     @Override
     public Vertex setupDepartOnBoard(RoutingContext ctx) {
-        DistanceLibrary distanceLibrary = SphericalDistanceLibrary.getInstance();
+
         RoutingRequest opt = ctx.opt;
         opt.rctx = ctx;
 
         /* 1. Get the list of PatternHop for the given trip ID. */
-        AgencyAndId tripId = opt.getStartingTransitTripId();
+        AgencyAndId tripId = opt.startingTransitTripId;
         Trip trip = ctx.graph.index.tripForId.get(tripId);
         TripPattern tripPattern = ctx.graph.index.patternForTrip.get(trip);
         if (tripPattern == null) {
@@ -75,8 +74,8 @@ public class OnBoardDepartServiceImpl implements OnBoardDepartService {
         }
         List<PatternHop> hops = tripPattern.getPatternHops();
 
-        Double lon = opt.getFrom().getLng(); // Origin point, optional
-        Double lat = opt.getFrom().getLat();
+        Double lon = opt.from.lng; // Origin point, optional
+        Double lat = opt.from.lat;
         PatternStopVertex nextStop;
         TripTimes bestTripTimes = null;
         ServiceDay bestServiceDay = null;
@@ -95,7 +94,7 @@ public class OnBoardDepartServiceImpl implements OnBoardDepartService {
             double minDist = Double.MAX_VALUE;
             for (PatternHop hop : hops) {
                 LineString line = hop.getGeometry();
-                double dist = distanceLibrary.fastDistance(point, line);
+                double dist = SphericalDistanceLibrary.fastDistance(point, line);
                 if (dist < minDist) {
                     minDist = dist;
                     bestHop = hop;
@@ -114,9 +113,9 @@ public class OnBoardDepartServiceImpl implements OnBoardDepartService {
              */
             LineString geometry = bestHop.getGeometry();
             P2<LineString> geomPair = GeometryUtils.splitGeometryAtPoint(geometry, point);
-            geomRemaining = geomPair.getSecond();
-            double total = distanceLibrary.fastLength(geometry);
-            double remaining = distanceLibrary.fastLength(geomRemaining);
+            geomRemaining = geomPair.second;
+            double total = SphericalDistanceLibrary.fastLength(geometry);
+            double remaining = SphericalDistanceLibrary.fastLength(geomRemaining);
             fractionCovered = total > 0.0 ? (double) (1.0 - remaining / total) : 0.0;
 
             nextStop = (PatternStopVertex) bestHop.getToVertex();
@@ -223,7 +222,7 @@ public class OnBoardDepartServiceImpl implements OnBoardDepartService {
 
             P2<LineString> geomPair =
                     GeometryUtils.splitGeometryAtFraction(geometry, fractionCovered);
-            geomRemaining = geomPair.getSecond();
+            geomRemaining = geomPair.second;
 
             if (geometry.isEmpty()) {
                 lon = Double.NaN;

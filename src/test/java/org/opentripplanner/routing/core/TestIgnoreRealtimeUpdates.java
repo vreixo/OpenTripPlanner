@@ -15,7 +15,7 @@ package org.opentripplanner.routing.core;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
-import org.opentripplanner.routing.edgetype.TimetableResolver;
+import org.opentripplanner.routing.edgetype.TimetableSnapshot;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graph.Vertex;
 import org.opentripplanner.routing.vertextype.TransitStop;
@@ -36,7 +36,7 @@ public class TestIgnoreRealtimeUpdates extends TestCase {
         RoutingRequest options = new RoutingRequest();
         
         // Check that realtime updates are not ignored
-        assertFalse(options.isIgnoreRealtimeUpdates());
+        assertFalse(options.ignoreRealtimeUpdates);
         
         // Create (very simple) new graph
         Graph graph = new Graph();
@@ -49,13 +49,13 @@ public class TestIgnoreRealtimeUpdates extends TestCase {
         Vertex from = new TransitStop(graph, stop1);
         Vertex to = new TransitStop(graph, stop2);
         
-        // Create dummy TimetableResolver
-        TimetableResolver resolver = new TimetableResolver();
+        // Create dummy TimetableSnapshot
+        TimetableSnapshot snapshot = new TimetableSnapshot();
         
-        // Mock TimetableSnapshotSource to return dummy TimetableResolver
+        // Mock TimetableSnapshotSource to return dummy TimetableSnapshot
         TimetableSnapshotSource source = mock(TimetableSnapshotSource.class);
-        when(source.getTimetableSnapshot()).thenReturn(resolver);
-        graph.setTimetableSnapshotSource(source);
+        when(source.getTimetableSnapshot()).thenReturn(snapshot);
+        graph.timetableSnapshotSource = (source);
         
         // Create routing context
         RoutingContext rctx = new RoutingContext(options, graph, from, to);
@@ -64,10 +64,10 @@ public class TestIgnoreRealtimeUpdates extends TestCase {
         assertNotNull(rctx.timetableSnapshot);
         
         // Now set routing request to ignore realtime updates
-        options.setIgnoreRealtimeUpdates(true);
+        options.ignoreRealtimeUpdates = (true);
         
         // Check that realtime updates are ignored
-        assertTrue(options.isIgnoreRealtimeUpdates());
+        assertTrue(options.ignoreRealtimeUpdates);
         
         // Create new routing context
         rctx = new RoutingContext(options, graph, from, to);

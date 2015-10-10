@@ -13,28 +13,15 @@
 
 package org.opentripplanner.common;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Queue;
-
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.Polygon;
 import org.opentripplanner.common.geometry.Subgraph;
 import org.opentripplanner.graph_builder.annotation.GraphConnectivity;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
 import org.opentripplanner.routing.core.TraverseMode;
 import org.opentripplanner.routing.core.TraverseModeSet;
-import org.opentripplanner.routing.edgetype.ElevatorEdge;
-import org.opentripplanner.routing.edgetype.FreeEdge;
-import org.opentripplanner.routing.edgetype.PlainStreetEdge;
-import org.opentripplanner.routing.edgetype.StreetEdge;
-import org.opentripplanner.routing.edgetype.StreetTransitLink;
-import org.opentripplanner.routing.edgetype.StreetTraversalPermission;
+import org.opentripplanner.routing.edgetype.*;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graph.Vertex;
@@ -42,8 +29,9 @@ import org.opentripplanner.routing.vertextype.StreetVertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.geom.Polygon;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.*;
 
 public class StreetUtils {
 
@@ -58,8 +46,7 @@ public class StreetUtils {
             try {
                 islandLog = new PrintWriter(new File(islandLogName));
             } catch (Exception e) {
-                LOG.error("Failed to write islands log file due to {}", e.toString());
-                e.printStackTrace();
+                LOG.error("Failed to write islands log file", e);
             }
         }
         if (islandLog != null) {
@@ -158,13 +145,13 @@ public class StreetUtils {
             Vertex v = vIter.next();
             Collection<Edge> outgoing = new ArrayList<Edge>(v.getOutgoing());
             for (Edge e : outgoing) {
-                if (e instanceof PlainStreetEdge) {
-                    PlainStreetEdge pse = (PlainStreetEdge) e;
+                if (e instanceof StreetEdge) {
+                    StreetEdge pse = (StreetEdge) e;
                     StreetTraversalPermission permission = pse.getPermission();
                     permission = permission.remove(StreetTraversalPermission.PEDESTRIAN);
                     permission = permission.remove(StreetTraversalPermission.BICYCLE);
                     if (permission == StreetTraversalPermission.NONE) {
-                        pse.detach();
+                        graph.removeEdge(pse);
                     } else {
                         pse.setPermission(permission);
                     }
@@ -185,7 +172,7 @@ public class StreetUtils {
             edges.addAll(v.getIncoming());
             for (Edge e : edges) {
                 if (e instanceof StreetTransitLink) {
-                    e.detach();
+                    graph.removeEdge(e);
                 }
             }
         }

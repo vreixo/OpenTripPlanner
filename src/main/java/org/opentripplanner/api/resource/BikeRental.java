@@ -18,7 +18,7 @@ import static org.opentripplanner.api.resource.ServerInfo.Q;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
+import java.util.Locale;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -28,14 +28,13 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import lombok.Setter;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
 import org.opentripplanner.routing.bike_rental.BikeRentalStationService;
-import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.routing.services.GraphService;
+import org.opentripplanner.standalone.OTPServer;
+import org.opentripplanner.standalone.Router;
 
 import com.vividsolutions.jts.geom.Envelope;
-import org.opentripplanner.standalone.OTPServer;
+import org.opentripplanner.util.ResourceBundleSingleton;
 
 @Path("/routers/{routerId}/bike_rental")
 @XmlRootElement
@@ -43,19 +42,20 @@ public class BikeRental {
 
     @Context
     OTPServer otpServer;
-    @Setter
-    private GraphService graphService;
 
     @GET
     @Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML + Q, MediaType.TEXT_XML + Q })
     public BikeRentalStationList getBikeRentalStations(
             @QueryParam("lowerLeft") String lowerLeft,
             @QueryParam("upperRight") String upperRight,
-            @PathParam("routerId") String routerId) {
+            @PathParam("routerId") String routerId,
+            @QueryParam("locale") String locale_param) {
 
-        Graph graph = otpServer.graphService.getGraph(routerId);
-        if (graph == null) return null;
-        BikeRentalStationService bikeRentalService = graph.getService(BikeRentalStationService.class);
+        Router router = otpServer.getRouter(routerId);
+        if (router == null) return null;
+        BikeRentalStationService bikeRentalService = router.graph.getService(BikeRentalStationService.class);
+        Locale locale;
+        locale = ResourceBundleSingleton.INSTANCE.getLocale(locale_param);
         if (bikeRentalService == null) return new BikeRentalStationList();
         Envelope envelope;
         if (lowerLeft != null) {
@@ -63,11 +63,13 @@ public class BikeRental {
         } else {
             envelope = new Envelope(-180,180,-90,90); 
         }
-        Collection<BikeRentalStation> stations = bikeRentalService.getStations();
-        List<BikeRentalStation> out = new ArrayList<BikeRentalStation>();
+        Collection<BikeRentalStation> stations = bikeRentalService.getBikeRentalStations();
+        List<BikeRentalStation> out = new ArrayList<>();
         for (BikeRentalStation station : stations) {
             if (envelope.contains(station.x, station.y)) {
-                out.add(station);
+                BikeRentalStation station_localized = station.clone();
+                station_localized.locale = locale;
+                out.add(station_localized);
             }
         }
         BikeRentalStationList brsl = new BikeRentalStationList();

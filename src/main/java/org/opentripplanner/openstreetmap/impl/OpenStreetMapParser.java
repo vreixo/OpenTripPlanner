@@ -51,11 +51,11 @@ public class OpenStreetMapParser {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
             Document doc = builder.parse(in);
             processDocument(doc, map, 1);
-            map.doneRelations();
+            map.doneFirstPhaseRelations();
             processDocument(doc, map, 2);
-            map.secondPhase();
+            map.doneSecondPhaseWays();
             processDocument(doc, map, 3);
-            map.nodesLoaded();
+            map.doneThirdPhaseNodes();
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
         }
@@ -74,8 +74,8 @@ public class OpenStreetMapParser {
                 OSMNode osmNode = new OSMNode();
 
                 osmNode.setId(Long.parseLong(element.getAttribute("id")));
-                osmNode.setLat(Double.parseDouble(element.getAttribute("lat")));
-                osmNode.setLon(Double.parseDouble(element.getAttribute("lon")));
+                osmNode.lat = Double.parseDouble(element.getAttribute("lat"));
+                osmNode.lon = Double.parseDouble(element.getAttribute("lon"));
 
                 processTags(osmNode, element);
                 map.addNode(osmNode);

@@ -22,11 +22,11 @@ import org.opentripplanner.analyst.core.SampleSource;
 import org.opentripplanner.common.geometry.RecursiveGridIsolineBuilder;
 import org.opentripplanner.common.geometry.RecursiveGridIsolineBuilder.ZFunc;
 import org.opentripplanner.common.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.routing.algorithm.AStar;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.State;
+import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.routing.graph.Vertex;
-import org.opentripplanner.routing.services.GraphService;
-import org.opentripplanner.routing.services.SPTService;
 import org.opentripplanner.routing.spt.ShortestPathTree;
 import org.opentripplanner.routing.vertextype.StreetVertex;
 import org.slf4j.Logger;
@@ -44,14 +44,12 @@ public class IsoChroneSPTRendererRecursiveGrid implements IsoChroneSPTRenderer {
     private static final Logger LOG = LoggerFactory
             .getLogger(IsoChroneSPTRendererRecursiveGrid.class);
 
-    private GraphService graphService;
-    private SPTService sptService;
+    private Graph graph;
     private SampleSource sampleSource;
 
-    public IsoChroneSPTRendererRecursiveGrid(GraphService graphService, SPTService sptService, SampleSource sampleSource) {
-        this.graphService = graphService;
-        this.sptService = sptService;
-        this.sampleSource = sampleSource;
+    public IsoChroneSPTRendererRecursiveGrid(Graph graph) {
+        this.graph = graph;
+        this.sampleSource = graph.getSampleFactory();
     }
 
     /**
@@ -63,18 +61,18 @@ public class IsoChroneSPTRendererRecursiveGrid implements IsoChroneSPTRenderer {
     public List<IsochroneData> getIsochrones(IsoChroneRequest isoChroneRequest,
             RoutingRequest sptRequest) {
 
-        if (sptRequest.getRouterId() != null && !sptRequest.getRouterId().isEmpty())
+        if (sptRequest.routerId != null && !sptRequest.routerId.isEmpty())
             throw new IllegalArgumentException(
                     "TODO: SampleSource is not multi-router compatible (yet).");
 
         // 1. Compute the Shortest Path Tree.
         long t0 = System.currentTimeMillis();
-        sptRequest.setWorstTime(sptRequest.dateTime
-                + (sptRequest.arriveBy ? -isoChroneRequest.getMaxCutoffSec() : isoChroneRequest
-                        .getMaxCutoffSec()));
-        sptRequest.setBatch(true);
-        sptRequest.setRoutingContext(graphService.getGraph(sptRequest.getRouterId()));
-        final ShortestPathTree spt = sptService.getShortestPathTree(sptRequest);
+        sptRequest.worstTime = (sptRequest.dateTime
+                + (sptRequest.arriveBy ? -isoChroneRequest.maxCutoffSec : isoChroneRequest.maxCutoffSec));
+        sptRequest.batch = true;
+        sptRequest.setRoutingContext(graph);
+        // TODO handle different path dominance conditions
+        final ShortestPathTree spt = new AStar().getShortestPathTree(sptRequest);
         sptRequest.cleanup();
 
         // 2. Compute the set of initial points
@@ -85,7 +83,6 @@ public class IsoChroneSPTRendererRecursiveGrid implements IsoChroneSPTRenderer {
         ZFunc timeFunc = new ZFunc() {
             @Override
             public long z(Coordinate c) {
-                // TODO Make the sample source multi-router compatible
                 Sample sample = sampleSource.getSample(c.x, c.y);
                 if (sample == null) {
                     return Long.MAX_VALUE;
@@ -95,21 +92,21 @@ public class IsoChroneSPTRendererRecursiveGrid implements IsoChroneSPTRenderer {
             }
         };
         // TODO Snap the center as XYZ tile grid for better sample-reuse (if using sample cache).
-        Coordinate center = sptRequest.getFrom().getCoordinate();
-        double gridSizeMeters = isoChroneRequest.getPrecisionMeters();
+        Coordinate center = sptRequest.from.getCoordinate();
+        double gridSizeMeters = isoChroneRequest.precisionMeters;
         double dY = Math.toDegrees(gridSizeMeters / SphericalDistanceLibrary.RADIUS_OF_EARTH_IN_M);
         double dX = dY / Math.cos(Math.toRadians(center.x));
         LOG.info("dX={}, dY={}", dX, dY);
         RecursiveGridIsolineBuilder isolineBuilder = new RecursiveGridIsolineBuilder(dX, dY,
                 center, timeFunc, initialPoints);
-        isolineBuilder.setDebugCrossingEdges(isoChroneRequest.isIncludeDebugGeometry());
-        isolineBuilder.setDebugSeedGrid(isoChroneRequest.isIncludeDebugGeometry());
+        isolineBuilder.setDebugCrossingEdges(isoChroneRequest.includeDebugGeometry);
+        isolineBuilder.setDebugSeedGrid(isoChroneRequest.includeDebugGeometry);
         List<IsochroneData> isochrones = new ArrayList<IsochroneData>();
-        for (Integer cutoffSec : isoChroneRequest.getCutoffSecList()) {
+        for (Integer cutoffSec : isoChroneRequest.cutoffSecList) {
             IsochroneData isochrone = new IsochroneData(cutoffSec,
                     isolineBuilder.computeIsoline(cutoffSec));
-            if (isoChroneRequest.isIncludeDebugGeometry())
-                isochrone.setDebugGeometry(isolineBuilder.getDebugGeometry());
+            if (isoChroneRequest.includeDebugGeometry)
+                isochrone.debugGeometry = isolineBuilder.getDebugGeometry();
             isochrones.add(isochrone);
         }
         long t2 = System.currentTimeMillis();

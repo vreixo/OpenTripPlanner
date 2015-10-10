@@ -25,6 +25,7 @@ import org.opentripplanner.routing.vertextype.BikeRentalStationVertex;
 
 import com.google.common.collect.Sets;
 import com.vividsolutions.jts.geom.LineString;
+import java.util.Locale;
 
 /**
  * Renting or dropping off a rented bike edge.
@@ -53,18 +54,18 @@ public abstract class RentABikeAbstractEdge extends Edge {
         /*
          * To rent a bike, we need to have BICYCLE in allowed modes.
          */
-        if (!options.getModes().contains(TraverseMode.BICYCLE))
+        if (!options.modes.contains(TraverseMode.BICYCLE))
             return null;
 
         BikeRentalStationVertex dropoff = (BikeRentalStationVertex) tov;
-        if (options.isUseBikeRentalAvailabilityInformation() && dropoff.getBikesAvailable() == 0) {
+        if (options.useBikeRentalAvailabilityInformation && dropoff.getBikesAvailable() == 0) {
             return null;
         }
 
         StateEditor s1 = s0.edit(this);
-        s1.incrementWeight(options.isArriveBy() ? options.bikeRentalDropoffCost
+        s1.incrementWeight(options.arriveBy ? options.bikeRentalDropoffCost
                 : options.bikeRentalPickupCost);
-        s1.incrementTimeInSeconds(options.isArriveBy() ? options.bikeRentalDropoffTime
+        s1.incrementTimeInSeconds(options.arriveBy ? options.bikeRentalDropoffTime
                 : options.bikeRentalPickupTime);
         s1.setBikeRenting(true);
         s1.setBikeRentalNetwork(networks);
@@ -81,14 +82,14 @@ public abstract class RentABikeAbstractEdge extends Edge {
         if (!s0.isBikeRenting() || !hasCompatibleNetworks(networks, s0.getBikeRentalNetworks()))
             return null;
         BikeRentalStationVertex pickup = (BikeRentalStationVertex) tov;
-        if (options.isUseBikeRentalAvailabilityInformation() && pickup.getSpacesAvailable() == 0) {
+        if (options.useBikeRentalAvailabilityInformation && pickup.getSpacesAvailable() == 0) {
             return null;
         }
 
         StateEditor s1e = s0.edit(this);
-        s1e.incrementWeight(options.isArriveBy() ? options.bikeRentalPickupCost
+        s1e.incrementWeight(options.arriveBy ? options.bikeRentalPickupCost
                 : options.bikeRentalDropoffCost);
-        s1e.incrementTimeInSeconds(options.isArriveBy() ? options.bikeRentalPickupTime
+        s1e.incrementTimeInSeconds(options.arriveBy ? options.bikeRentalPickupTime
                 : options.bikeRentalDropoffTime);
         s1e.setBikeRenting(false);
         s1e.setBackMode(TraverseMode.WALK);
@@ -112,6 +113,11 @@ public abstract class RentABikeAbstractEdge extends Edge {
     }
 
     @Override
+    public String getName(Locale locale) {
+        return getToVertex().getName(locale);
+    }
+
+    @Override
     public boolean hasBogusName() {
         return false;
     }
@@ -123,11 +129,11 @@ public abstract class RentABikeAbstractEdge extends Edge {
      */
     private boolean hasCompatibleNetworks(Set<String> stationNetworks, Set<String> rentedNetworks) {
         /*
-         * Two stations are compatible if they share at least one network.
-         * Special case for "*" networks (no network defined in OSM).
+         * Two stations are compatible if they share at least one network. Special case for "null"
+         * networks ("catch-all" network defined).
          */
-        if (stationNetworks.contains("*") || rentedNetworks.contains("*"))
-            return true;
+        if (stationNetworks == null || rentedNetworks == null)
+            return true; // Always a match
         return !Sets.intersection(stationNetworks, rentedNetworks).isEmpty();
     }
 }

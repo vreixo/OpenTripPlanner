@@ -15,14 +15,10 @@ package org.opentripplanner.updater.stoptime;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.prefs.Preferences;
 
-import org.opentripplanner.updater.PreferencesConfigurable;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.opentripplanner.updater.*;
 import org.opentripplanner.routing.graph.Graph;
-import org.opentripplanner.updater.GraphUpdaterManager;
-import org.opentripplanner.updater.GraphWriterRunnable;
-import org.opentripplanner.updater.PollingGraphUpdater;
-import org.opentripplanner.updater.stoptime.TimetableSnapshotSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,16 +71,21 @@ public class PollingStoptimeUpdater extends PollingGraphUpdater {
      */
     private String agencyId;
 
+    /**
+     * Set only if we should attempt to match the trip_id from other data in TripDescriptor
+     */
+    private GtfsRealtimeFuzzyTripMatcher fuzzyTripMatcher;
+
     @Override
     public void setGraphUpdaterManager(GraphUpdaterManager updaterManager) {
         this.updaterManager = updaterManager;
     }
 
     @Override
-    public void configurePolling(Graph graph, Preferences preferences) throws Exception {
+    public void configurePolling(Graph graph, JsonNode config) throws Exception {
         // Create update streamer from preferences
-        agencyId = preferences.get("defaultAgencyId", "");
-        String sourceType = preferences.get("sourceType", null);
+        agencyId = config.path("defaultAgencyId").asText("");
+        String sourceType = config.path("sourceType").asText();
         if (sourceType != null) {
             if (sourceType.equals("gtfs-http")) {
                 updateSource = new GtfsRealtimeHttpTripUpdateSource();
@@ -97,25 +98,24 @@ public class PollingStoptimeUpdater extends PollingGraphUpdater {
         if (updateSource == null) {
             throw new IllegalArgumentException(
                     "Unknown update streamer source type: " + sourceType);
-        } else if (updateSource instanceof PreferencesConfigurable) {
-            ((PreferencesConfigurable) updateSource).configure(graph, preferences);
+        } else if (updateSource instanceof JsonConfigurable) {
+            ((JsonConfigurable) updateSource).configure(graph, config);
         }
 
-        // Configure updater
-        int logFrequency = preferences.getInt("logFrequency", -1);
+        // Configure updater FIXME why are the fields objects instead of primitives? this allows null values...
+        int logFrequency = config.path("logFrequency").asInt(-1);
         if (logFrequency >= 0) {
             this.logFrequency = logFrequency;
         }
-        int maxSnapshotFrequency = preferences.getInt("maxSnapshotFrequencyMs", -1);
-        if (maxSnapshotFrequency >= 0)
+        int maxSnapshotFrequency = config.path("maxSnapshotFrequencyMs").asInt(-1);
+        if (maxSnapshotFrequency >= 0) {
             this.maxSnapshotFrequency = maxSnapshotFrequency;
-        String purgeExpiredData = preferences.get("purgeExpiredData", "");
-        if (!purgeExpiredData.isEmpty()) {
-            this.purgeExpiredData = preferences.getBoolean("purgeExpiredData", true);
         }
-
-        LOG.info("Creating stop time updater running every {} seconds : {}",
-                getFrequencySec(), updateSource);
+        this.purgeExpiredData = config.path("purgeExpiredData").asBoolean(true);
+        if (config.path("fuzzyTripMatching").asBoolean(false)) {
+            this.fuzzyTripMatcher = new GtfsRealtimeFuzzyTripMatcher(graph.index);
+        }
+        LOG.info("Creating stop time updater running every {} seconds : {}", frequencySec, updateSource);
     }
 
     @Override
@@ -125,22 +125,25 @@ public class PollingStoptimeUpdater extends PollingGraphUpdater {
             @Override
             public void run(Graph graph) {
                 // Only create a realtime data snapshot source if none exists already
-                TimetableSnapshotSource snapshotSource = graph.getTimetableSnapshotSource();
+                TimetableSnapshotSource snapshotSource = graph.timetableSnapshotSource;
                 if (snapshotSource == null) {
                     snapshotSource = new TimetableSnapshotSource(graph);
                     // Add snapshot source to graph
-                    graph.setTimetableSnapshotSource(snapshotSource);
+                    graph.timetableSnapshotSource = (snapshotSource);
                 }
 
                 // Set properties of realtime data snapshot source
                 if (logFrequency != null) {
-                    snapshotSource.setLogFrequency(logFrequency);
+                    snapshotSource.logFrequency = (logFrequency);
                 }
                 if (maxSnapshotFrequency != null) {
-                    snapshotSource.setMaxSnapshotFrequency(maxSnapshotFrequency);
+                    snapshotSource.maxSnapshotFrequency = (maxSnapshotFrequency);
                 }
                 if (purgeExpiredData != null) {
-                    snapshotSource.setPurgeExpiredData(purgeExpiredData);
+                    snapshotSource.purgeExpiredData = (purgeExpiredData);
+                }
+                if (fuzzyTripMatcher != null) {
+                    snapshotSource.fuzzyTripMatcher = fuzzyTripMatcher;
                 }
             }
         });
@@ -154,11 +157,12 @@ public class PollingStoptimeUpdater extends PollingGraphUpdater {
     public void runPolling() {
         // Get update lists from update source
         List<TripUpdate> updates = updateSource.getUpdates();
+        boolean fullDataset = updateSource.getFullDatasetValueOfLastUpdates();
 
-        if (updates != null && updates.size() > 0) {
+        if (updates != null) {
             // Handle trip updates via graph writer runnable
             TripUpdateGraphWriterRunnable runnable =
-                    new TripUpdateGraphWriterRunnable(updates, agencyId);
+                    new TripUpdateGraphWriterRunnable(fullDataset, updates, agencyId);
             updaterManager.execute(runnable);
         }
     }

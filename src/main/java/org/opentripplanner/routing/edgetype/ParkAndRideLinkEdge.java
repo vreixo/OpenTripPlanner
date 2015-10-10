@@ -14,7 +14,6 @@
 package org.opentripplanner.routing.edgetype;
 
 import org.opentripplanner.common.MavenVersion;
-import org.opentripplanner.common.geometry.DistanceLibrary;
 import org.opentripplanner.common.geometry.GeometryUtils;
 import org.opentripplanner.common.geometry.SphericalDistanceLibrary;
 import org.opentripplanner.routing.core.RoutingRequest;
@@ -27,6 +26,7 @@ import org.opentripplanner.routing.vertextype.ParkAndRideVertex;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
+import java.util.Locale;
 
 /**
  * This represents the connection between a P+R and the street access.
@@ -77,12 +77,11 @@ public class ParkAndRideLinkEdge extends Edge {
     }
 
     private void initGeometry() {
-        DistanceLibrary distanceLibrary = SphericalDistanceLibrary.getInstance();
         Coordinate fromc = fromv.getCoordinate();
         Coordinate toc = tov.getCoordinate();
         geometry = GeometryUtils.getGeometryFactory().createLineString(
                 new Coordinate[] { fromc, toc });
-        linkDistance = distanceLibrary.distance(fromc, toc);
+        linkDistance = SphericalDistanceLibrary.distance(fromc, toc);
     }
 
     @Override
@@ -92,13 +91,19 @@ public class ParkAndRideLinkEdge extends Edge {
     }
 
     @Override
+    public String getName(Locale locale) {
+        //TODO: localize
+        return this.getName();
+    }
+
+    @Override
     public State traverse(State s0) {
         // Do not enter park and ride mechanism if it's not activated in the routing request.
         if ( ! s0.getOptions().parkAndRide) {
             return null;
         }
         Edge backEdge = s0.getBackEdge();
-        boolean back = s0.getOptions().isArriveBy();
+        boolean back = s0.getOptions().arriveBy;
         // If we are exiting (or entering-backward), check if we
         // really parked a car: this will prevent using P+R as
         // shortcut.
@@ -110,7 +115,7 @@ public class ParkAndRideLinkEdge extends Edge {
         if (mode == TraverseMode.WALK) {
             // Walking
             double walkTime = linkDistance * WALK_OBSTRUCTION_FACTOR
-                    / s0.getOptions().getWalkSpeed();
+                    / s0.getOptions().walkSpeed;
             s1.incrementTimeInSeconds((int) Math.round(walkTime));
             s1.incrementWeight(walkTime);
             s1.incrementWalkDistance(linkDistance);
@@ -135,7 +140,7 @@ public class ParkAndRideLinkEdge extends Edge {
 
     @Override
     public double weightLowerBound(RoutingRequest options) {
-        boolean parkAndRide = options.getModes().getWalk() && options.getModes().getCar();
+        boolean parkAndRide = options.modes.getWalk() && options.modes.getCar();
         return parkAndRide ? 0 : Double.POSITIVE_INFINITY;
     }
 

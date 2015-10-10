@@ -13,47 +13,55 @@
 
 package org.opentripplanner.routing.core;
 
-import static org.junit.Assert.*;
-
 import org.junit.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.common.model.GenericLocation;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.opentripplanner.routing.core.TraverseMode.CAR;
+
 public class RoutingRequestTest {
 
     private GenericLocation randomLocation() {
         return new GenericLocation(Math.random(), Math.random());
     }
-    
+
+    @Test
+    public void testRequest() {
+        RoutingRequest request = new RoutingRequest();
+
+        request.addMode(CAR);
+        assertTrue(request.modes.getCar());
+        request.removeMode(CAR);
+        assertFalse(request.modes.getCar());
+
+        request.setModes(new TraverseModeSet("BICYCLE,WALK"));
+        assertFalse(request.modes.getCar());
+        assertTrue(request.modes.getBicycle());
+        assertTrue(request.modes.getWalk());
+    }
+
     @Test
     public void testIntermediatePlaces() {
         RoutingRequest req = new RoutingRequest();
         assertFalse(req.hasIntermediatePlaces());
-        assertFalse(req.intermediatesEffectivelyOrdered());
-        
+
         req.clearIntermediatePlaces();
         assertFalse(req.hasIntermediatePlaces());
-        assertFalse(req.intermediatesEffectivelyOrdered());
-        
+
         req.addIntermediatePlace(randomLocation());
         assertTrue(req.hasIntermediatePlaces());
         
-        // There is only one intermediate, so they are effectively ordered.
-        assertTrue(req.intermediatesEffectivelyOrdered());
-        
         req.clearIntermediatePlaces();
         assertFalse(req.hasIntermediatePlaces());
-        assertFalse(req.intermediatesEffectivelyOrdered());
-        
+
         req.addIntermediatePlace(randomLocation());
         req.addIntermediatePlace(randomLocation());
         assertTrue(req.hasIntermediatePlaces());
-        assertFalse(req.intermediatesEffectivelyOrdered());
-        
-        req.setIntermediatePlacesOrdered(true);
-        assertTrue(req.intermediatesEffectivelyOrdered());        
     }
 
     @Test

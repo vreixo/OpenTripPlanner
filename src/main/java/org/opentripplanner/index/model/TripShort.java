@@ -10,23 +10,22 @@ import com.beust.jcommander.internal.Lists;
 
 public class TripShort {
 
-    public String agency;
-    public String id;
+    public AgencyAndId id;
     public String tripHeadsign;
-    public String serviceId;
+    public AgencyAndId serviceId;
     public String shapeId;
-    public int direction;
+    public Integer direction;
 
     // INCLUDE start and end time, pattern and route in detail version
     
     public TripShort (Trip trip) {
-        agency = trip.getId().getAgencyId();
-        id = trip.getId().getId();
+        id = trip.getId();
         tripHeadsign = trip.getTripHeadsign();
-        serviceId = trip.getServiceId().getId();
+        serviceId = trip.getServiceId();
         AgencyAndId shape = trip.getShapeId();
         shapeId = shape == null ? null : shape.getId();
-        direction = Integer.parseInt(trip.getDirectionId());
+        String directionId = trip.getDirectionId();
+        direction = directionId == null ? null : Integer.parseInt(directionId);
     }
 
     public static List<TripShort> list (Collection<Trip> in) {

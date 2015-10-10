@@ -37,7 +37,7 @@ public class TestGraphPath extends TestCase {
     
     private Graph graph;
 
-    private GenericAStar aStar = new GenericAStar();
+    private AStar aStar = new AStar();
 
     public void setUp() throws Exception {
         GtfsContext context = GtfsLibrary.readGtfs(new File(ConstantsForTests.FAKE_GTFS));
@@ -49,9 +49,9 @@ public class TestGraphPath extends TestCase {
 
     public void testGraphPathOptimize() throws Exception {
 
-        Vertex stop_a = graph.getVertex("agency_A");
-        Vertex stop_c = graph.getVertex("agency_C");
-        Vertex stop_e = graph.getVertex("agency_E");
+        Vertex stop_a = graph.getVertex("agency:A");
+        Vertex stop_c = graph.getVertex("agency:C");
+        Vertex stop_e = graph.getVertex("agency:E");
 
         ShortestPathTree spt;
         GraphPath path;

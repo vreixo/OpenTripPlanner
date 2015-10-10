@@ -18,6 +18,9 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.common.MavenVersion;
@@ -51,7 +54,7 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
      * This allows re-using the same scheduled arrival and departure time arrays for many
      * different TripTimes. It is also used in materializing frequency-based TripTimes.
      */
-    private int timeShift;
+    int timeShift;
 
     /** The trips whose arrivals and departures are represented by this TripTimes */
     public final Trip trip;
@@ -73,25 +76,25 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
      * The time in seconds after midnight at which the vehicle should arrive at each stop according
      * to the original schedule.
      */
-    private final int[] scheduledArrivalTimes;
+    final int[] scheduledArrivalTimes;
 
     /**
      * The time in seconds after midnight at which the vehicle should leave each stop according
      * to the original schedule.
      */
-    private final int[] scheduledDepartureTimes;
+    final int[] scheduledDepartureTimes;
 
     /**
      * The time in seconds after midnight at which the vehicle arrives at each stop, accounting for
      * any real-time updates. Non-final to allow updates.
      */
-    private int[] arrivalTimes;
+    int[] arrivalTimes;
 
     /**
      * The time in seconds after midnight at which the vehicle leaves each stop, accounting for
      * any real-time updates. Non-final to allow updates.
      */
-    private int[] departureTimes;
+    int[] departureTimes;
 
     /**
      * These are the GTFS stop sequence numbers, which show the order in which the vehicle visits
@@ -107,7 +110,7 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
     /**
      * Is this trip cancelled?
      */
-    private boolean cancelled = false;
+    private boolean canceled = false;
 
     /** A Set of stop indexes that are marked as timepoints in the GTFS input. */
     private final BitSet timepoints;
@@ -260,6 +263,13 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
         return departureTimes == null && arrivalTimes == null;
     }
 
+    /**
+     * @return true if this TripTimes is canceled
+     */
+    public boolean isCanceled() {
+        return canceled;
+    }
+
     /** Used in debugging / dumping times. */
     public static String formatSeconds(int s) {
         int m = s / 60;
@@ -319,7 +329,7 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
 
     /** Cancel this entire trip */
     public void cancel() {
-        cancelled = true;
+        canceled = true;
         arrivalTimes = new int[getNumStops()];
         Arrays.fill(arrivalTimes, UNAVAILABLE);
         departureTimes = arrivalTimes;
@@ -403,5 +413,20 @@ public class TripTimes implements Serializable, Comparable<TripTimes>, Cloneable
     /** @return whether or not stopIndex is considered a timepoint in this TripTimes. */
     public boolean isTimepoint(int stopIndex) {
         return timepoints.get(stopIndex);
+    }
+
+    /**
+     * Hash the scheduled arrival/departure times. Used in creating stable IDs for trips across GTFS feed versions.
+     * Use hops rather than stops because:
+     * a) arrival at stop zero and departure from last stop are irrelevant
+     * b) this hash function needs to stay stable when users switch from 0.10.x to 1.0
+     */
+    public HashCode semanticHash(HashFunction hashFunction) {
+        Hasher hasher = hashFunction.newHasher();
+        for (int hop = 0; hop < getNumStops() - 1; hop++) {
+            hasher.putInt(getScheduledDepartureTime(hop));
+            hasher.putInt(getScheduledArrivalTime(hop + 1));
+        }
+        return hasher.hash();
     }
 }

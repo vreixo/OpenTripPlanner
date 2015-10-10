@@ -61,11 +61,11 @@ public class GraphPath {
      */
     public GraphPath(State s, boolean optimize) {
         // Only optimize transit trips
-        optimize &= s.getOptions().getModes().isTransit();
+        optimize &= s.getOptions().modes.isTransit();
         this.rctx = s.getContext();
-        this.back = s.getOptions().isArriveBy();
+        this.back = s.getOptions().arriveBy;
         // optimize = false; // DEBUG
-        if (s.getOptions().getStartingTransitTripId() != null) {
+        if (s.getOptions().startingTransitTripId != null) {
             LOG.debug("Disable reverse-optimize for on-board depart");
             optimize = false;
         }
@@ -159,7 +159,7 @@ public class GraphPath {
     }
 
     public String toString() {
-        return "GraphPath(" + states.toString() + ")";
+    	return "GraphPath(nStates=" + states.size() + ")";
     }
 
     /**
@@ -185,10 +185,14 @@ public class GraphPath {
     public void dump() {
         System.out.println(" --- BEGIN GRAPHPATH DUMP ---");
         System.out.println(this.toString());
-        for (State s : states)
-            System.out.println(s + " via " + s.getBackEdge());
+        for (State s : states) {
+            //System.out.println(s.getBackEdge() + " leads to " + s);
+            if (s.getBackEdge() != null) {
+                System.out.println(s.getBackEdge().getClass().getSimpleName() + " --> " + s.getVertex().getClass().getSimpleName());
+            }
+        }
         System.out.println(" --- END GRAPHPATH DUMP ---");
-        System.out.println("Total meters walked in this graphpath: " + 
+        System.out.println("Total meters walked in the preceding graphpath: " +
                states.getLast().getWalkDistance());
     }
 

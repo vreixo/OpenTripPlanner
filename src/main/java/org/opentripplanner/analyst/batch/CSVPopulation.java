@@ -13,8 +13,7 @@
 
 package org.opentripplanner.analyst.batch;
 
-import java.nio.charset.Charset;
-
+import com.csvreader.CsvReader;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -22,38 +21,30 @@ import org.opengis.referencing.operation.MathTransform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.csvreader.CsvReader;
-
-import lombok.Setter;
+import java.nio.charset.Charset;
 
 public class CSVPopulation extends BasicPopulation {
 
     private static final Logger LOG = LoggerFactory.getLogger(CSVPopulation.class);
 
-    @Setter
     public int yCol = 0;
     
     public void setLatCol(int latCol) {
     	yCol = latCol;
     }
 
-    @Setter
     public int xCol = 1;
 
     public void setLonCol(int lonCol) {
     	xCol = lonCol;
     }
     
-    @Setter
     public int labelCol = 2;
 
-    @Setter
     public int inputCol = 3;
     
-    @Setter
     public String crs = null;
 
-    @Setter
     public boolean skipHeaders = true;
 
     @Override
@@ -125,8 +116,7 @@ public class CSVPopulation extends BasicPopulation {
             }
             reader.close();
         } catch (Exception e) {
-            LOG.error("exception while loading individuals from CSV file:");
-            e.printStackTrace();
+            LOG.error("exception while loading individuals from CSV file", e);
         }
     }
 

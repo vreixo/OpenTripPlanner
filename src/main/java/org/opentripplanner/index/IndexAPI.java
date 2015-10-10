@@ -13,10 +13,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 package org.opentripplanner.index;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import com.beust.jcommander.internal.Lists;
+import com.beust.jcommander.internal.Sets;
+import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Envelope;
+import org.onebusaway.gtfs.model.Agency;
+import org.onebusaway.gtfs.model.AgencyAndId;
+import org.onebusaway.gtfs.model.Route;
+import org.onebusaway.gtfs.model.Stop;
+import org.onebusaway.gtfs.model.Trip;
+import org.onebusaway.gtfs.model.calendar.ServiceDate;
+import org.opentripplanner.common.geometry.SphericalDistanceLibrary;
+import org.opentripplanner.gtfs.GtfsLibrary;
+import org.opentripplanner.index.model.PatternDetail;
+import org.opentripplanner.index.model.PatternShort;
+import org.opentripplanner.index.model.RouteShort;
+import org.opentripplanner.index.model.StopClusterDetail;
+import org.opentripplanner.index.model.StopShort;
+import org.opentripplanner.index.model.StopTimesInPattern;
+import org.opentripplanner.index.model.TripShort;
+import org.opentripplanner.index.model.TripTimeShort;
+import org.opentripplanner.profile.StopCluster;
+import org.opentripplanner.routing.edgetype.SimpleTransfer;
+import org.opentripplanner.routing.edgetype.Timetable;
+import org.opentripplanner.routing.edgetype.TripPattern;
+import org.opentripplanner.routing.graph.Edge;
+import org.opentripplanner.routing.graph.GraphIndex;
+import org.opentripplanner.routing.services.StreetVertexIndexService;
+import org.opentripplanner.routing.vertextype.TransitStop;
+import org.opentripplanner.standalone.OTPServer;
+import org.opentripplanner.standalone.Router;
+import org.opentripplanner.util.PolylineEncoder;
+import org.opentripplanner.util.model.EncodedPolylineBean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -27,40 +62,21 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
-import org.onebusaway.gtfs.model.Agency;
-import org.onebusaway.gtfs.model.AgencyAndId;
-import org.onebusaway.gtfs.model.Route;
-import org.onebusaway.gtfs.model.Stop;
-import org.onebusaway.gtfs.model.StopTime;
-import org.onebusaway.gtfs.model.Trip;
-import org.opentripplanner.common.geometry.DistanceLibrary;
-import org.opentripplanner.common.geometry.SphericalDistanceLibrary;
-import org.opentripplanner.index.model.PatternDetail;
-import org.opentripplanner.index.model.PatternShort;
-import org.opentripplanner.index.model.RouteShort;
-import org.opentripplanner.index.model.StopShort;
-import org.opentripplanner.index.model.TripShort;
-import org.opentripplanner.index.model.TripTimeShort;
-import org.opentripplanner.routing.edgetype.TripPattern;
-import org.opentripplanner.routing.edgetype.Timetable;
-import org.opentripplanner.routing.graph.GraphIndex;
-import org.opentripplanner.routing.vertextype.TransitStop;
-import org.opentripplanner.standalone.OTPServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.internal.Lists;
-import com.beust.jcommander.internal.Sets;
-import com.vividsolutions.jts.geom.Coordinate;
+// TODO move to org.opentripplanner.api.resource, this is a Jersey resource class
 
 @Path("/routers/{routerId}/index")    // It would be nice to get rid of the final /index.
 @Produces(MediaType.APPLICATION_JSON) // One @Produces annotation for all endpoints.
 public class IndexAPI {
 
+    @SuppressWarnings("unused")
     private static final Logger LOG = LoggerFactory.getLogger(IndexAPI.class);
     private static final double MAX_STOP_SEARCH_RADIUS = 5000;
-    private static final DistanceLibrary distanceLibrary = SphericalDistanceLibrary.getInstance();
     private static final String MSG_404 = "FOUR ZERO FOUR";
     private static final String MSG_400 = "FOUR HUNDRED";
 
@@ -71,9 +87,12 @@ public class IndexAPI {
     @QueryParam("refs") private boolean refs = false;
 
     private final GraphIndex index;
+    private final StreetVertexIndexService streetIndex;
 
     public IndexAPI (@Context OTPServer otpServer, @PathParam("routerId") String routerId) {
-        index = otpServer.graphService.getGraph(routerId).index;
+        Router router = otpServer.getRouter(routerId);
+        index = router.graph.index;
+        streetIndex = router.graph.streetIndex;
     }
 
    /* Needed to check whether query parameter map is empty, rather than chaining " && x == null"s */
@@ -97,12 +116,34 @@ public class IndexAPI {
        }
        return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
    }
+
+    /** Return all routes for the specific agency. */
+    @GET
+    @Path("/agencies/{agencyId}/routes")
+    public Response getAgencyRoutes (@PathParam("agencyId") String agencyId) {
+        Collection<Route> routes = index.routeForId.values();
+        Agency agency = index.agencyForId.get(agencyId);
+        if (agency == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        Collection<Route> agencyRoutes = new ArrayList<>();
+        for (Route route: routes) {
+            if (route.getAgency() == agency) {
+                agencyRoutes.add(route);
+            }
+        }
+        routes = agencyRoutes;
+        if (detail){
+            return Response.status(Status.OK).entity(routes).build();
+        }
+        else {
+            return Response.status(Status.OK).entity(RouteShort.list(routes)).build();
+        }
+    }
    
    /** Return specific transit stop in the graph, by ID. */
    @GET
    @Path("/stops/{stopId}")
    public Response getStop (@PathParam("stopId") String stopIdString) {
-       AgencyAndId stopId = AgencyAndId.convertFromString(stopIdString);
+       AgencyAndId stopId = GtfsLibrary.convertIdFromString(stopIdString);
        Stop stop = index.stopForId.get(stopId);
        if (stop != null) {
            return Response.status(Status.OK).entity(stop).build();
@@ -110,7 +151,7 @@ public class IndexAPI {
            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
        }
    }
-
+   
    /** Return a list of all stops within a circle around the given coordinate. */
    @GET
    @Path("/stops")
@@ -139,9 +180,9 @@ public class IndexAPI {
            }
            List<StopShort> stops = Lists.newArrayList(); 
            Coordinate coord = new Coordinate(lon, lat);
-           /* TODO Ack this should use the spatial index! */
-           for (TransitStop stopVertex : index.stopSpatialIndex.query(lon, lat, radius)) {
-               double distance = distanceLibrary.fastDistance(stopVertex.getCoordinate(), coord);
+           for (TransitStop stopVertex : streetIndex.getNearbyTransitStops(
+                    new Coordinate(lon, lat), radius)) {
+               double distance = SphericalDistanceLibrary.fastDistance(stopVertex.getCoordinate(), coord);
                if (distance < radius) {
                    stops.add(new StopShort(stopVertex.getStop(), (int) distance));
                }
@@ -155,20 +196,19 @@ public class IndexAPI {
            if (maxLat <= minLat || maxLon <= minLon) {
                return Response.status(Status.BAD_REQUEST).entity(MSG_400).build();
            }
-           List<StopShort> stops = Lists.newArrayList(); 
-           for (TransitStop stopVertex : index.stopSpatialIndex.query(lon, lat, radius)) {
-               /* TODO The spatial index needs a rectangle query function. */
-               index.stopSpatialIndex.query(lon, lat, radius);
+           List<StopShort> stops = Lists.newArrayList();
+           Envelope envelope = new Envelope(new Coordinate(minLon, minLat), new Coordinate(maxLon, maxLat));
+           for (TransitStop stopVertex : streetIndex.getTransitStopForEnvelope(envelope)) {
                stops.add(new StopShort(stopVertex.getStop()));
            }
            return Response.status(Status.OK).entity(stops).build();           
        }
-}
+   }
 
    @GET
    @Path("/stops/{stopId}/routes")
    public Response getRoutesForStop (@PathParam("stopId") String stopId) {
-       Stop stop = index.stopForId.get(AgencyAndId.convertFromString(stopId));
+       Stop stop = index.stopForId.get(GtfsLibrary.convertIdFromString(stopId));
        if (stop == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
        Set<Route> routes = Sets.newHashSet();
        for (TripPattern pattern : index.patternsForStop.get(stop)) {
@@ -180,22 +220,85 @@ public class IndexAPI {
    @GET
    @Path("/stops/{stopId}/patterns")
    public Response getPatternsForStop (@PathParam("stopId") String stopIdString) {
-       AgencyAndId id = AgencyAndId.convertFromString(stopIdString);
+       AgencyAndId id = GtfsLibrary.convertIdFromString(stopIdString);
        Stop stop = index.stopForId.get(id);
        if (stop == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
        Collection<TripPattern> patterns = index.patternsForStop.get(stop);
        return Response.status(Status.OK).entity(PatternShort.list(patterns)).build();
    }
 
-    /** Return upcoming vehicle arrival/departure times at the given stop. */
+    /** Return upcoming vehicle arrival/departure times at the given stop.
+     *
+     * @param stopIdString Stop ID in Agency:Stop ID format
+     * @param startTime Start time for the search. Seconds from UNIX epoch
+     * @param timeRange Searches forward for timeRange seconds from startTime
+     * @param numberOfDepartures Number of departures to fetch per pattern
+     */
     @GET
     @Path("/stops/{stopId}/stoptimes")
-    public Response getStoptimesForStop (@PathParam("stopId") String stopIdString) {
-        Stop stop = index.stopForId.get(AgencyAndId.convertFromString(stopIdString));
+    public Response getStoptimesForStop (@PathParam("stopId") String stopIdString,
+                                         @QueryParam("startTime") long startTime,
+                                         @QueryParam("timeRange") @DefaultValue("86400") int timeRange,
+                                         @QueryParam("numberOfDepartures") @DefaultValue("2") int numberOfDepartures) {
+        Stop stop = index.stopForId.get(GtfsLibrary.convertIdFromString(stopIdString));
         if (stop == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
-        return Response.status(Status.OK).entity(index.stopTimesForStop(stop)).build();
+        return Response.status(Status.OK).entity(index.stopTimesForStop(stop, startTime, timeRange, numberOfDepartures)).build();
     }
 
+    /**
+     * Return upcoming vehicle arrival/departure times at the given stop.
+     * @param date in YYYYMMDD format
+     */
+    @GET
+    @Path("/stops/{stopId}/stoptimes/{date}")
+    public Response getStoptimesForStopAndDate (@PathParam("stopId") String stopIdString,
+                                                @PathParam("date") String date) {
+        Stop stop = index.stopForId.get(GtfsLibrary.convertIdFromString(stopIdString));
+        if (stop == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        ServiceDate sd;
+        try {
+            sd = ServiceDate.parseString(date);
+        }
+        catch (ParseException e){
+            return Response.status(Status.BAD_REQUEST).entity(MSG_400).build();
+        }
+
+        List<StopTimesInPattern> ret = index.getStopTimesForStop(stop, sd);
+        return Response.status(Status.OK).entity(ret).build();
+    }
+    
+    /**
+     * Return the generated transfers a stop in the graph, by stop ID
+     */
+    @GET
+    @Path("/stops/{stopId}/transfers")
+    public Response getTransfers(@PathParam("stopId") String stopIdString) {
+        Stop stop = index.stopForId.get(GtfsLibrary.convertIdFromString(stopIdString));
+        
+        if (stop != null) {
+            // get the transfers for the stop
+            TransitStop v = index.stopVertexForStop.get(stop);
+            Collection<Edge> transfers = Collections2.filter(v.getOutgoing(), new Predicate<Edge>() {
+                @Override
+                public boolean apply(Edge edge) {
+                    return edge instanceof SimpleTransfer;
+                }
+            });
+            
+            Collection<Transfer> out = Collections2.transform(transfers, new Function<Edge, Transfer> () {
+                @Override
+                public Transfer apply(Edge edge) {
+                    // TODO Auto-generated method stub
+                    return new Transfer((SimpleTransfer) edge);
+                }
+            });
+            
+            return Response.status(Status.OK).entity(out).build();
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }
+    
    /** Return a list of all routes in the graph. */
    // with repeated hasStop parameters, replaces old routesBetweenStops
    @GET
@@ -207,7 +310,7 @@ public class IndexAPI {
            // Protective copy, we are going to calculate the intersection destructively
            routes = Lists.newArrayList(routes);
            for (String stopId : stopIds) {
-               Stop stop = index.stopForId.get(AgencyAndId.convertFromString(stopId));
+               Stop stop = index.stopForId.get(GtfsLibrary.convertIdFromString(stopId));
                if (stop == null) return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
                Set<Route> routesHere = Sets.newHashSet();
                for (TripPattern pattern : index.patternsForStop.get(stop)) {
@@ -223,7 +326,7 @@ public class IndexAPI {
    @GET
    @Path("/routes/{routeId}")
    public Response getRoute (@PathParam("routeId") String routeIdString) {
-       AgencyAndId routeId = AgencyAndId.convertFromString(routeIdString);
+       AgencyAndId routeId = GtfsLibrary.convertIdFromString(routeIdString);
        Route route = index.routeForId.get(routeId);
        if (route != null) {
            return Response.status(Status.OK).entity(route).build();
@@ -236,7 +339,7 @@ public class IndexAPI {
    @GET
    @Path("/routes/{routeId}/patterns")
    public Response getPatternsForRoute (@PathParam("routeId") String routeIdString) {
-       AgencyAndId routeId = AgencyAndId.convertFromString(routeIdString);
+       AgencyAndId routeId = GtfsLibrary.convertIdFromString(routeIdString);
        Route route = index.routeForId.get(routeId);
        if (route != null) {
            Collection<TripPattern> patterns = index.patternsForRoute.get(route);
@@ -250,7 +353,7 @@ public class IndexAPI {
    @GET
    @Path("/routes/{routeId}/stops")
    public Response getStopsForRoute (@PathParam("routeId") String routeIdString) {
-       AgencyAndId routeId = AgencyAndId.convertFromString(routeIdString);
+       AgencyAndId routeId = GtfsLibrary.convertIdFromString(routeIdString);
        Route route = index.routeForId.get(routeId);
        if (route != null) {
            Set<Stop> stops = Sets.newHashSet();
@@ -268,7 +371,7 @@ public class IndexAPI {
    @GET
    @Path("/routes/{routeId}/trips")
    public Response getTripsForRoute (@PathParam("routeId") String routeIdString) {
-       AgencyAndId routeId = AgencyAndId.convertFromString(routeIdString);
+       AgencyAndId routeId = GtfsLibrary.convertIdFromString(routeIdString);
        Route route = index.routeForId.get(routeId);
        if (route != null) {
            List<Trip> trips = Lists.newArrayList();
@@ -289,7 +392,7 @@ public class IndexAPI {
    @GET
    @Path("/trips/{tripId}")
    public Response getTrip (@PathParam("tripId") String tripIdString) {
-       AgencyAndId tripId = AgencyAndId.convertFromString(tripIdString);
+       AgencyAndId tripId = GtfsLibrary.convertIdFromString(tripIdString);
        Trip trip = index.tripForId.get(tripId);
        if (trip != null) {
            return Response.status(Status.OK).entity(trip).build();
@@ -301,7 +404,7 @@ public class IndexAPI {
    @GET
    @Path("/trips/{tripId}/stops")
    public Response getStopsForTrip (@PathParam("tripId") String tripIdString) {
-       AgencyAndId tripId = AgencyAndId.convertFromString(tripIdString);
+       AgencyAndId tripId = GtfsLibrary.convertIdFromString(tripIdString);
        Trip trip = index.tripForId.get(tripId);
        if (trip != null) {
            TripPattern pattern = index.patternForTrip.get(trip);
@@ -312,19 +415,47 @@ public class IndexAPI {
        }
    }
 
-   @GET
+    @GET
+    @Path("/trips/{tripId}/semanticHash")
+    public Response getSemanticHashForTrip (@PathParam("tripId") String tripIdString) {
+        AgencyAndId tripId = GtfsLibrary.convertIdFromString(tripIdString);
+        Trip trip = index.tripForId.get(tripId);
+        if (trip != null) {
+            TripPattern pattern = index.patternForTrip.get(trip);
+            String hashString = pattern.semanticHashString(trip);
+            return Response.status(Status.OK).entity(hashString).build();
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }
+
+    @GET
    @Path("/trips/{tripId}/stoptimes")
    public Response getStoptimesForTrip (@PathParam("tripId") String tripIdString) {
-       AgencyAndId tripId = AgencyAndId.convertFromString(tripIdString);
+       AgencyAndId tripId = GtfsLibrary.convertIdFromString(tripIdString);
        Trip trip = index.tripForId.get(tripId);
        if (trip != null) {
            TripPattern pattern = index.patternForTrip.get(trip);
-           Timetable table = pattern.getScheduledTimetable();
+           Timetable table = pattern.scheduledTimetable;
            return Response.status(Status.OK).entity(TripTimeShort.fromTripTimes(table, trip)).build();
        } else { 
            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
        }
    }
+
+    /** Return geometry for the trip as a packed coordinate sequence */
+    @GET
+    @Path("/trips/{tripId}/geometry")
+    public Response getGeometryForTrip (@PathParam("tripId") String tripIdString) {
+        AgencyAndId tripId = GtfsLibrary.convertIdFromString(tripIdString);
+        Trip trip = index.tripForId.get(tripId);
+        if (trip != null) {
+            TripPattern tripPattern = index.patternForTrip.get(trip);
+            return getGeometryForPattern(tripPattern.code);
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }
 
    @GET
    @Path("/patterns")
@@ -359,7 +490,7 @@ public class IndexAPI {
    @GET
    @Path("/patterns/{patternId}/stops")
    public Response getStopsForPattern (@PathParam("patternId") String patternIdString) {
-       // Pattern names are graph-unique because we made them up.
+       // Pattern names are graph-unique because we made them that way (did not read them from GTFS).
        TripPattern pattern = index.patternForId.get(patternIdString);
        if (pattern != null) {
            List<Stop> stops = pattern.getStops();
@@ -370,19 +501,82 @@ public class IndexAPI {
    }
 
     @GET
-    @Path("/services")
+    @Path("/patterns/{patternId}/semanticHash")
+    public Response getSemanticHashForPattern (@PathParam("patternId") String patternIdString) {
+        // Pattern names are graph-unique because we made them that way (did not read them from GTFS).
+        TripPattern pattern = index.patternForId.get(patternIdString);
+        if (pattern != null) {
+            String semanticHash = pattern.semanticHashString(null);
+            return Response.status(Status.OK).entity(semanticHash).build();
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }
+
+    /** Return geometry for the pattern as a packed coordinate sequence */
+    @GET
+    @Path("/patterns/{patternId}/geometry")
+    public Response getGeometryForPattern (@PathParam("patternId") String patternIdString) {
+        TripPattern pattern = index.patternForId.get(patternIdString);
+        if (pattern != null) {
+            EncodedPolylineBean geometry = PolylineEncoder.createEncodings(pattern.geometry);
+            return Response.status(Status.OK).entity(geometry).build();
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }    
+
+    // TODO include pattern ID for each trip in responses
+
     /** List basic information about all service IDs. */
+    @GET
+    @Path("/services")
     public Response getServices() {
         index.serviceForId.values(); // TODO complete
         return Response.status(Status.OK).entity("NONE").build();
     }
 
+    /** List details about a specific service ID including which dates it runs on. Replaces the old /calendar. */
     @GET
     @Path("/services/{serviceId}")
-    /** List details about a specific service ID including which dates it runs on. Replaces the old /calendar. */
     public Response getServices(@PathParam("serviceId") String serviceId) {
         index.serviceForId.get(serviceId); // TODO complete
         return Response.status(Status.OK).entity("NONE").build();
     }
 
+    /** Return all clusters of stops. */
+    @GET
+    @Path("/clusters")
+    public Response getAllStopClusters () {
+        // use 'detail' field common to all API methods in this class
+        List<StopClusterDetail> scl = StopClusterDetail.list(index.stopClusterForId.values(), detail);
+        return Response.status(Status.OK).entity(scl).build();
+    }
+
+    /** Return a cluster of stops by its ID. */
+    @GET
+    @Path("/clusters/{clusterId}")
+    public Response getStopCluster (@PathParam("clusterId") String clusterIdString) {
+        StopCluster cluster = index.stopClusterForId.get(clusterIdString);
+        if (cluster != null) {
+            return Response.status(Status.OK).entity(new StopClusterDetail(cluster, true)).build();
+        } else {
+            return Response.status(Status.NOT_FOUND).entity(MSG_404).build();
+        }
+    }
+
+    /** Represents a transfer from a stop */
+    private static class Transfer {
+        /** The stop we are connecting to */
+        public String toStopId;
+        
+        /** the on-street distance of the transfer (meters) */
+        public double distance;
+        
+        /** Make a transfer from a simpletransfer edge from the graph. */
+        public Transfer(SimpleTransfer e) {
+            toStopId = GtfsLibrary.convertIdToString(((TransitStop) e.getToVertex()).getStopId());
+            distance = e.getDistance();
+        }
+    }
 }

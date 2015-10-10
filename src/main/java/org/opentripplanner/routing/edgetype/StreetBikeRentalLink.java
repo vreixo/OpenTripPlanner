@@ -23,6 +23,7 @@ import org.opentripplanner.routing.vertextype.BikeRentalStationVertex;
 import org.opentripplanner.routing.vertextype.StreetVertex;
 
 import com.vividsolutions.jts.geom.LineString;
+import java.util.Locale;
 
 /**
  * This represents the connection between a street vertex and a bike rental station vertex.
@@ -60,6 +61,11 @@ public class StreetBikeRentalLink extends Edge {
         return bikeRentalStationVertex.getName();
     }
 
+    @Override
+    public String getName(Locale locale) {
+        return bikeRentalStationVertex.getName(locale);
+    }
+
     public State traverse(State s0) {
         // Do not even consider bike rental vertices unless bike rental is enabled.
         if ( ! s0.getOptions().allowBikeRental) {
@@ -82,7 +88,7 @@ public class StreetBikeRentalLink extends Edge {
 
     @Override
     public double weightLowerBound(RoutingRequest options) {
-        return options.getModes().contains(TraverseMode.BICYCLE) ? 0 : Double.POSITIVE_INFINITY;
+        return options.modes.contains(TraverseMode.BICYCLE) ? 0 : Double.POSITIVE_INFINITY;
     }
 
     public Vertex getFromVertex() {

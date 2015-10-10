@@ -13,16 +13,13 @@
 
 package org.opentripplanner.routing.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.TimeZone;
-
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.CoordinateSequence;
+import com.vividsolutions.jts.geom.CoordinateSequenceFactory;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LineString;
 import org.junit.Test;
+import org.onebusaway.gtfs.model.Agency;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
 import org.onebusaway.gtfs.model.Stop;
@@ -34,6 +31,7 @@ import org.opentripplanner.model.StopPattern;
 import org.opentripplanner.routing.core.RoutingContext;
 import org.opentripplanner.routing.core.RoutingRequest;
 import org.opentripplanner.routing.core.ServiceDay;
+import org.opentripplanner.routing.core.TraverseModeSet;
 import org.opentripplanner.routing.edgetype.PatternHop;
 import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Edge;
@@ -46,11 +44,14 @@ import org.opentripplanner.routing.vertextype.PatternArriveVertex;
 import org.opentripplanner.routing.vertextype.PatternDepartVertex;
 import org.opentripplanner.routing.vertextype.TransitStop;
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.CoordinateSequence;
-import com.vividsolutions.jts.geom.CoordinateSequenceFactory;
-import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geom.LineString;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.TimeZone;
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /*
  * FIXME: This test has become seriously ugly after recent changes to OTP. Using mocks, which seemed
@@ -78,6 +79,10 @@ public class OnBoardDepartServiceImplTest {
         RoutingRequest routingRequest = mock(RoutingRequest.class);
         ServiceDay serviceDay = mock(ServiceDay.class);
 
+        // You're probably not supposed to do this to mocks (access their fields directly)
+        // But I know of no other way to do this since the mock object has only action-free stub methods.
+        routingRequest.modes = new TraverseModeSet("WALK,TRANSIT");
+
         when(graph.getTimeZone()).thenReturn(TimeZone.getTimeZone("GMT"));
 
         GeometryFactory geometryFactory = GeometryUtils.getGeometryFactory();
@@ -88,6 +93,7 @@ public class OnBoardDepartServiceImplTest {
         ArrayList<Edge> hops = new ArrayList<Edge>(2);
         RoutingContext routingContext = new RoutingContext(routingRequest, graph, null, arrive);
         AgencyAndId agencyAndId = new AgencyAndId("Agency", "ID");
+        Agency agency = new Agency();
         Route route = new Route();
         ArrayList<StopTime> stopTimes = new ArrayList<StopTime>(3);
         StopTime stopDepartTime = new StopTime();
@@ -100,7 +106,9 @@ public class OnBoardDepartServiceImplTest {
 
         routingContext.serviceDays =
                 new ArrayList<ServiceDay>(Collections.singletonList(serviceDay));
+        agency.setId(agencyAndId.getAgencyId());
         route.setId(agencyAndId);
+        route.setAgency(agency);
         stopDepart.setId(agencyAndId);
         stopDwell.setId(agencyAndId);
         stopArrive.setId(agencyAndId);
@@ -116,6 +124,7 @@ public class OnBoardDepartServiceImplTest {
         stopTimes.add(stopArriveTime);
         trip.setId(agencyAndId);
         trip.setTripHeadsign("The right");
+        trip.setRoute(route);
 
         TripTimes tripTimes = new TripTimes(trip, stopTimes, new Deduplicator());
         StopPattern stopPattern = new StopPattern(stopTimes);
@@ -134,8 +143,8 @@ public class OnBoardDepartServiceImplTest {
         when(depart.getCoordinate()).thenReturn(new Coordinate(0, 0));
         when(dwell.getCoordinate()).thenReturn(new Coordinate(0, 0));
         when(arrive.getCoordinate()).thenReturn(new Coordinate(0, 0));
-        when(routingRequest.getFrom()).thenReturn(new GenericLocation());
-        when(routingRequest.getStartingTransitTripId()).thenReturn(agencyAndId);
+        routingRequest.from = new GenericLocation();
+        routingRequest.startingTransitTripId = agencyAndId;
         when(serviceDay.secondsSinceMidnight(anyInt())).thenReturn(9);
 
         patternHop0.setGeometry(geometry);
@@ -176,6 +185,10 @@ public class OnBoardDepartServiceImplTest {
         RoutingRequest routingRequest = mock(RoutingRequest.class);
         ServiceDay serviceDay = mock(ServiceDay.class);
 
+        // You're probably not supposed to do this to mocks (access their fields directly)
+        // But I know of no other way to do this since the mock object has only action-free stub methods.
+        routingRequest.modes = new TraverseModeSet("WALK,TRANSIT");
+
         when(graph.getTimeZone()).thenReturn(TimeZone.getTimeZone("GMT"));
         when(station0.getX()).thenReturn(coordinates[0].x);
         when(station0.getY()).thenReturn(coordinates[0].y);
@@ -184,6 +197,7 @@ public class OnBoardDepartServiceImplTest {
 
         RoutingContext routingContext = new RoutingContext(routingRequest, graph, null, arrive);
         AgencyAndId agencyAndId = new AgencyAndId("Agency", "ID");
+        Agency agency = new Agency();
         Route route = new Route();
         ArrayList<StopTime> stopTimes = new ArrayList<StopTime>(2);
         StopTime stopDepartTime = new StopTime();
@@ -194,7 +208,9 @@ public class OnBoardDepartServiceImplTest {
 
         routingContext.serviceDays =
                 new ArrayList<ServiceDay>(Collections.singletonList(serviceDay));
+        agency.setId(agencyAndId.getAgencyId());
         route.setId(agencyAndId);
+        route.setAgency(agency);
         stopDepart.setId(new AgencyAndId("Station", "0"));
         stopArrive.setId(new AgencyAndId("Station", "1"));
         stopDepartTime.setStop(stopDepart);
@@ -204,6 +220,7 @@ public class OnBoardDepartServiceImplTest {
         stopTimes.add(stopDepartTime);
         stopTimes.add(stopArriveTime);
         trip.setId(agencyAndId);
+        trip.setRoute(route);
 
         TripTimes tripTimes = new TripTimes(trip, stopTimes, new Deduplicator());
         StopPattern stopPattern = new StopPattern(stopTimes);
@@ -216,8 +233,8 @@ public class OnBoardDepartServiceImplTest {
         when(graph.getEdges()).thenReturn(Collections.<Edge>singletonList(patternHop));
         when(depart.getCoordinate()).thenReturn(new Coordinate(0, 0));
         when(arrive.getCoordinate()).thenReturn(new Coordinate(0, 0));
-        when(routingRequest.getFrom()).thenReturn(new GenericLocation());
-        when(routingRequest.getStartingTransitTripId()).thenReturn(agencyAndId);
+        routingRequest.from = new GenericLocation();
+        routingRequest.startingTransitTripId = agencyAndId;
         when(serviceDay.secondsSinceMidnight(anyInt())).thenReturn(10);
         when(graph.getVertex("Station_0")).thenReturn(station0);
         when(graph.getVertex("Station_1")).thenReturn(station1);
@@ -243,10 +260,15 @@ public class OnBoardDepartServiceImplTest {
         RoutingRequest routingRequest = mock(RoutingRequest.class);
         ServiceDay serviceDay = mock(ServiceDay.class);
 
+        // You're probably not supposed to do this to mocks (access their fields directly)
+        // But I know of no other way to do this since the mock object has only action-free stub methods.
+        routingRequest.modes = new TraverseModeSet("WALK,TRANSIT");
+
         when(graph.getTimeZone()).thenReturn(TimeZone.getTimeZone("GMT"));
 
         ArrayList<Edge> hops = new ArrayList<Edge>(2);
         RoutingContext routingContext = new RoutingContext(routingRequest, graph, null, arrive);
+        Agency agency = new Agency();
         AgencyAndId agencyAndId = new AgencyAndId("Agency", "ID");
         Route route = new Route();
         ArrayList<StopTime> stopTimes = new ArrayList<StopTime>(2);
@@ -260,7 +282,9 @@ public class OnBoardDepartServiceImplTest {
 
         routingContext.serviceDays =
                 new ArrayList<ServiceDay>(Collections.singletonList(serviceDay));
+        agency.setId(agencyAndId.getAgencyId());
         route.setId(agencyAndId);
+        route.setAgency(agency);
         stopDepart.setId(new AgencyAndId("Station", "0"));
         stopDwell.setId(new AgencyAndId("Station", "1"));
         stopArrive.setId(new AgencyAndId("Station", "2"));
@@ -275,6 +299,7 @@ public class OnBoardDepartServiceImplTest {
         stopTimes.add(stopDwellTime);
         stopTimes.add(stopArriveTime);
         trip.setId(agencyAndId);
+        trip.setRoute(route);
 
         TripTimes tripTimes = new TripTimes(trip, stopTimes, new Deduplicator());
         StopPattern stopPattern = new StopPattern(stopTimes);
@@ -293,8 +318,8 @@ public class OnBoardDepartServiceImplTest {
         when(depart.getCoordinate()).thenReturn(new Coordinate(0, 0));
         when(dwell.getCoordinate()).thenReturn(new Coordinate(0, 0));
         when(arrive.getCoordinate()).thenReturn(new Coordinate(0, 0));
-        when(routingRequest.getFrom()).thenReturn(new GenericLocation());
-        when(routingRequest.getStartingTransitTripId()).thenReturn(agencyAndId);
+        routingRequest.from = new GenericLocation();
+        routingRequest.startingTransitTripId = agencyAndId;
         when(graph.getVertex("Station_0")).thenReturn(station0);
         when(graph.getVertex("Station_1")).thenReturn(station1);
         when(graph.getVertex("Station_2")).thenReturn(station2);

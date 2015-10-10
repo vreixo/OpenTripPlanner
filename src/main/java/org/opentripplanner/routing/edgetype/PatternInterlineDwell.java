@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.vividsolutions.jts.geom.LineString;
+import java.util.Locale;
 
 /**
  * A PatternInterlineDwell refers to "interlining", where a single physical vehicle carries out several logical trips
@@ -94,8 +95,7 @@ public class PatternInterlineDwell extends Edge implements OnboardEdge {
         // to the _departure_ of the first stop of the second pattern.
         // The last stop of the first pattern does not even have a _depart_ vertex, and
         // The first stop of the second pattern does not even have an _arrive_ vertex.
-        super(p0.arriveVertices[p0.stopPattern.size - 1],
-              p1.departVertices[0]);
+        super(p0.arriveVertices[p0.stopPattern.size - 1], p1.departVertices[0]);
     }
 
     @VisibleForTesting
@@ -116,6 +116,11 @@ public class PatternInterlineDwell extends Edge implements OnboardEdge {
     @Override
     public String getName() {
         return "INTERLINE"; //GtfsLibrary.getRouteName(pattern.getRoute());
+    }
+
+    @Override
+    public String getName(Locale locale) {
+        return this.getName();
     }
 
     @Override
@@ -150,7 +155,7 @@ public class PatternInterlineDwell extends Edge implements OnboardEdge {
         int departureTime;
         AgencyAndId tripId = state0.getTripId();
 
-        if (options.isArriveBy()) {
+        if (options.arriveBy) {
             // traversing backward
             newPattern = ((OnboardVertex) fromv).getTripPattern();
             newTripTimes = newPattern.getResolvedTripTimes(newTrip, state0);

@@ -34,6 +34,10 @@ import java.util.List;
 /**
  * Implementation of a BikeRentalDataSource for the BICIMAD API.
  *
+ * API access is public upon request in http://opendata.emtmadrid.es/Servicios-web/BICIMAD to obtain
+ * credentials.
+ * URL is "https://rbdata.emtmadrid.es:8443/BiciMad/get_stations/[USER]/[PASSWORD]"
+ *
  * @see BikeRentalDataSource
  */
 public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonConfigurable {

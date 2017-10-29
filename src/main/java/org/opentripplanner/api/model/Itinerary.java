@@ -103,7 +103,67 @@ public class Itinerary {
      */
     public boolean tooSloped = false;
 
-    /** 
+    /**
+     * Indicates that the pollutionWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean averagePollutionLimitExceeded = false;
+
+    /**
+     * Indicates that the pollutionWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean peakPollutionLimitExceeded = false;
+
+    /**
+     * Indicates that the pollenWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean averagePollenLimitExceeded = false;
+
+    /**
+     * Indicates that the pollenWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean peakPollenLimitExceeded = false;
+
+    /**
+     * Indicates that the noiseWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean averageNoiseLimitExceeded = false;
+
+    /**
+     * Indicates that the noiseWithWalkDistance limit has been exceeded for this itinerary when true.
+     */
+    public boolean peakNoiseLimitExceeded = false;
+
+    /**wheelchairBoarding
+     * How much pollutionWithWalkDistance is present in this itinerary
+     */
+    public Double averagePollution = 0.0;
+
+    /**
+     * Top pollutionWithWalkDistance level present in this itinerary
+     */
+    public Double peakPollution = 0.0;
+
+    /**
+     * How much pollenWithWalkDistance is present in this itinerary
+     */
+    public Double averagePollen = 0.0;
+
+    /**
+     * Top pollenWithWalkDistance level present in this itinerary
+     */
+    public Double peakPollen = 0.0;
+
+    /**
+     * How much noiseWithWalkDistance is present in this itinerary
+     */
+    public Double averageNoise = 0.0;
+
+    /**
+     * Top noiseWithWalkDistance level present in this itinerary
+     */
+    public Double peakNoise = 0.0;
+
+    /**
      * adds leg to array list
      * @param leg
      */

@@ -14,13 +14,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package org.opentripplanner.updater.bike_rental;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.updater.JsonConfigurable;
 import org.opentripplanner.util.HttpUtils;
 import org.opentripplanner.util.NonLocalizedString;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +38,9 @@ import java.util.List;
  */
 public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonConfigurable {
 
-        private static final Logger log = LoggerFactory
-                .getLogger(GenericJsonBikeRentalDataSource.class);
+        private static final Logger log = LoggerFactory.getLogger(GenericJsonBikeRentalDataSource.class);
 
         private static final String jsonExternalParsePath = "data";
-
         private static final String jsonInternalParsePath = "stations";
 
         private String url;
@@ -51,7 +50,8 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
         public BicimadBikeRentalDataSource() {
         }
 
-        @Override public boolean update() {
+        @Override
+        public boolean update() {
                 try {
                         InputStream data;
 
@@ -75,8 +75,7 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
                         log.warn("Error parsing bike rental feed from " + url, e);
                         return false;
                 } catch (JsonProcessingException e) {
-                        log.warn("Error parsing bike rental feed from " + url
-                                + "(bad JSON of some sort)", e);
+                        log.warn("Error parsing bike rental feed from " + url + "(bad JSON of some sort)", e);
                         return false;
                 } catch (IOException e) {
                         log.warn("Error reading bike rental feed from " + url, e);
@@ -85,8 +84,8 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
                 return true;
         }
 
-        private void parseJSON(InputStream dataStream)
-                throws IllegalArgumentException, IOException {
+        private void parseJSON(InputStream dataStream) throws IllegalArgumentException,
+                IOException {
 
                 ArrayList<BikeRentalStation> out = new ArrayList<>();
 
@@ -103,7 +102,7 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
                         if (brstation != null)
                                 out.add(brstation);
                 }
-                synchronized (this) {
+                synchronized(this) {
                         stations = out;
                 }
         }
@@ -115,13 +114,12 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
                 if (!jsonParsePath.equals("")) {
                         String delimiter = "/";
                         String[] parseElement = jsonParsePath.split(delimiter);
-                        for (int i = 0; i < parseElement.length; i++) {
+                        for(int i =0; i < parseElement.length ; i++) {
                                 rootNode = rootNode.path(parseElement[i]);
                         }
 
                         if (rootNode.isMissingNode()) {
-                                throw new IllegalArgumentException(
-                                        "Could not find jSON elements " + jsonParsePath);
+                                throw new IllegalArgumentException("Could not find jSON elements " + jsonParsePath);
                         }
                 }
                 return rootNode;
@@ -129,21 +127,24 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
 
         private String convertStreamToString(java.io.InputStream is) {
                 java.util.Scanner scanner = null;
-                String result = "";
+                String result="";
                 try {
 
                         scanner = new java.util.Scanner(is).useDelimiter("\\A");
                         result = scanner.hasNext() ? scanner.next() : "";
                         scanner.close();
-                } finally {
-                        if (scanner != null)
+                }
+                finally
+                {
+                        if(scanner!=null)
                                 scanner.close();
                 }
                 return result;
 
         }
 
-        @Override public synchronized List<BikeRentalStation> getStations() {
+        @Override
+        public synchronized List<BikeRentalStation> getStations() {
                 return stations;
         }
 
@@ -170,7 +171,8 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
                 return station;
         }
 
-        @Override public String toString() {
+        @Override
+        public String toString() {
                 return getClass().getName() + "(" + url + ")";
         }
 
@@ -178,11 +180,11 @@ public class BicimadBikeRentalDataSource implements BikeRentalDataSource, JsonCo
          * Note that the JSON being passed in here is for configuration of the OTP component, it's completely separate
          * from the JSON coming in from the update source.
          */
-        @Override public void configure(Graph graph, JsonNode jsonNode) {
+        @Override
+        public void configure (Graph graph, JsonNode jsonNode) {
                 String url = jsonNode.path("url").asText(); // path() returns MissingNode not null.
                 if (url == null) {
-                        throw new IllegalArgumentException(
-                                "Missing mandatory 'url' configuration.");
+                        throw new IllegalArgumentException("Missing mandatory 'url' configuration.");
                 }
                 this.url = url;
         }

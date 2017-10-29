@@ -125,6 +125,12 @@ public class WalkStep {
 
     public transient double angle;
 
+    public double pollution;
+
+    public double pollen;
+
+    public double noise;
+
     /**
      * The walkStep's mode; only populated if this is the first step of that mode in the leg.
      * Used only in generating the streetEdges array in StreetSegment; not serialized. 

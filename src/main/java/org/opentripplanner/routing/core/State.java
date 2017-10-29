@@ -56,6 +56,18 @@ public class State implements Cloneable {
     // we should DEFINITELY rename this variable and the associated methods.
     public double walkDistance;
 
+    public double pollutionWithWalkDistance;
+
+    public double peakPollution;
+
+    public double pollenWithWalkDistance;
+
+    public double peakPollen;
+
+    public double noiseWithWalkDistance;
+
+    public double peakNoise;
+
     // The time traveled pre-transit, for park and ride or kiss and ride searches
     int preTransitTime;
 
@@ -127,6 +139,12 @@ public class State implements Cloneable {
                     : TraverseMode.BICYCLE;
         }
         this.walkDistance = 0;
+        this.pollutionWithWalkDistance = 0;
+        this.peakPollution = 0;
+        this.pollenWithWalkDistance = 0;
+        this.peakPollen = 0;
+        this.noiseWithWalkDistance = 0;
+        this.peakNoise = 0;
         this.preTransitTime = 0;
         this.time = timeSeconds * 1000;
         stateData.routeSequence = new AgencyAndId[0];
@@ -332,6 +350,48 @@ public class State implements Cloneable {
     public double getWalkDistanceDelta () {
         if (backState != null)
             return Math.abs(this.walkDistance - backState.walkDistance);
+        else
+            return 0.0;
+    }
+
+    public double getAveragePollutionDelta() {
+        if (backState != null)
+            return Math.abs(this.pollutionWithWalkDistance - backState.pollutionWithWalkDistance);
+        else
+            return 0.0;
+    }
+
+    public double getPeakPollutionDelta() {
+        if (backState != null)
+            return Math.abs(this.peakPollution - backState.peakPollution);
+        else
+            return 0.0;
+    }
+
+    public double getAveragePollenDelta() {
+        if (backState != null)
+            return Math.abs(this.pollenWithWalkDistance - backState.pollenWithWalkDistance);
+        else
+            return 0.0;
+    }
+
+    public double getPeakPollenDelta() {
+        if (backState != null)
+            return Math.abs(this.peakPollen - backState.peakPollen);
+        else
+            return 0.0;
+    }
+
+    public double getAverageNoiseDelta() {
+        if (backState != null)
+            return Math.abs(this.noiseWithWalkDistance - backState.noiseWithWalkDistance);
+        else
+            return 0.0;
+    }
+
+    public double getPeakNoiseDelta() {
+        if (backState != null)
+            return Math.abs(this.peakNoise - backState.peakNoise);
         else
             return 0.0;
     }
@@ -710,9 +770,14 @@ public class State implements Cloneable {
 
                 editor.incrementTimeInSeconds(orig.getAbsTimeDeltaSeconds());
                 editor.incrementWeight(orig.getWeightDelta());
+                editor.calculatePeakPollution(orig.getPeakPollutionDelta());
+                editor.calculatePeakPollen(orig.getPeakPollenDelta());
+                editor.calculatePeakNoise(orig.getPeakNoiseDelta());
+//                editor.incrementPollutionWithDistance(orig.getAveragePollutionDelta(), orig.getWalkDistanceDelta());
+                // must be calculated afterwards to keep previous accumulated distance
                 editor.incrementWalkDistance(orig.getWalkDistanceDelta());
                 editor.incrementPreTransitTime(orig.getPreTransitTimeDelta());
-                
+
                 // propagate the modes through to the reversed edge
                 editor.setBackMode(orig.getBackMode());
 
@@ -834,4 +899,27 @@ public class State implements Cloneable {
         return stateData.enteredNoThroughTrafficArea;
     }
 
+    public double getPollutionWithWalkDistance() {
+        return pollutionWithWalkDistance;
+    }
+
+    public double getPeakPollution() {
+        return peakPollution;
+    }
+
+    public double getPollenWithWalkDistance() {
+        return pollenWithWalkDistance;
+    }
+
+    public double getPeakPollen() {
+        return peakPollen;
+    }
+
+    public double getNoiseWithWalkDistance() {
+        return noiseWithWalkDistance;
+    }
+
+    public double getPeakNoise() {
+        return peakNoise;
+    }
 }

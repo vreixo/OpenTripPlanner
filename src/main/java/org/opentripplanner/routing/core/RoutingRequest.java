@@ -447,6 +447,44 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     private StreetEdge splitEdge = null;
 
+    public double maxAveragePollution = Double.MAX_VALUE;
+
+    public double maxPeakPollution = Double.MAX_VALUE;
+
+    public boolean softAveragePollutionLimiting = true;
+    public double softAveragePollutionOverageRate = 5.0; // a jump in cost for every meter over the average pollution limit
+    public double softAveragePollutionPenalty = 60.0; // a jump in cost when stepping over the average pollution limit
+
+    public boolean softPeakPollutionLimiting = true;
+    public double softPeakPollutionOverageRate = 5.0; // a jump in cost for every meter over the peak pollution limit
+    public double softPeakPollutionPenalty = 60.0; // a jump in cost when stepping over the peak pollution limit
+
+    public double maxAveragePollen = Double.MAX_VALUE;
+
+    public double maxPeakPollen = Double.MAX_VALUE;
+
+    public boolean softAveragePollenLimiting = true;
+    public double softAveragePollenOverageRate = 5.0; // a jump in cost for every meter over the average pollen limit
+    public double softAveragePollenPenalty = 60.0; // a jump in cost when stepping over the average pollen limit
+
+    public boolean softPeakPollenLimiting = true;
+    public double softPeakPollenOverageRate = 5.0; // a jump in cost for every meter over the peak pollen limit
+    public double softPeakPollenPenalty = 60.0; // a jump in cost when stepping over the peak pollen limit
+
+    public double maxAverageNoise = Double.MAX_VALUE;
+
+    public double maxPeakNoise = Double.MAX_VALUE;
+
+    public boolean softAverageNoiseLimiting = true;
+    public double softAverageNoiseOverageRate = 5.0; // a jump in cost for every meter over the average noise limit
+    public double softAverageNoisePenalty = 60.0; // a jump in cost when stepping over the average noise limit
+
+    public boolean softPeakNoiseLimiting = true;
+    public double softPeakNoiseOverageRate = 5.0; // a jump in cost for every meter over the peak noise limit
+    public double softPeakNoisePenalty = 60.0; // a jump in cost when stepping over the peak noise limit
+
+    public double wheelchairPartiallyAccessiblePenalty = 1200; // a jump in cost when stepping over the aditionalStationData limit
+
     /* CONSTRUCTORS */
 
     /** Constructor for options; modes defaults to walk and transit */
@@ -917,6 +955,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && maxTransfers == other.maxTransfers
                 && modes.equals(other.modes)
                 && wheelchairAccessible == other.wheelchairAccessible
+                && maxAveragePollution == other.maxAveragePollution
+                && maxPeakPollution == other.maxPeakPollution
                 && optimize.equals(other.optimize)
                 && maxWalkDistance == other.maxWalkDistance
                 && maxTransferWalkDistance == other.maxTransferWalkDistance
@@ -961,7 +1001,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && Objects.equal(startingTransitTripId, other.startingTransitTripId)
                 && useTraffic == other.useTraffic
                 && disableAlertFiltering == other.disableAlertFiltering
-                && geoidElevation == other.geoidElevation;
+                && geoidElevation == other.geoidElevation
+                && wheelchairPartiallyAccessiblePenalty == other.wheelchairPartiallyAccessiblePenalty;
     }
 
     /**
@@ -974,6 +1015,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 + new Double(carSpeed).hashCode() + new Double(maxWeight).hashCode()
                 + (int) (worstTime & 0xffffffff) + modes.hashCode()
                 + (arriveBy ? 8966786 : 0) + (wheelchairAccessible ? 731980 : 0)
+                + new Double(maxAveragePollution).hashCode() +
+                + new Double(maxPeakPollution).hashCode() +
                 + optimize.hashCode() + new Double(maxWalkDistance).hashCode()
                 + new Double(maxTransferWalkDistance).hashCode()
                 + new Double(transferPenalty).hashCode() + new Double(maxSlope).hashCode()
@@ -1230,6 +1273,45 @@ public class RoutingRequest implements Cloneable, Serializable {
                 throw new TrivialPathException();
             }
         }
+    }
 
+    public double getMaxAveragePollution() {
+        return maxAveragePollution;
+    }
+
+    public double getMaxPeakPollution() {
+        return maxPeakPollution;
+    }
+
+    public double getMaxAveragePollen() {
+        return maxAveragePollen;
+    }
+
+    public double getMaxPeakPollen() {
+        return maxPeakPollen;
+    }
+
+    public double getMaxAverageNoise() {
+        return maxAverageNoise;
+    }
+
+    public double getMaxPeakNoise() {
+        return maxPeakNoise;
+    }
+
+    public void setMaxAveragePollen(double maxAveragePollen) {
+        this.maxAveragePollen = maxAveragePollen;
+    }
+
+    public void setMaxPeakPollen(double maxPeakPollen) {
+        this.maxPeakPollen = maxPeakPollen;
+    }
+
+    public void setMaxAverageNoise(double maxAverageNoise) {
+        this.maxAverageNoise = maxAverageNoise;
+    }
+
+    public void setMaxPeakNoise(double maxPeakNoise) {
+        this.maxPeakNoise = maxPeakNoise;
     }
 }

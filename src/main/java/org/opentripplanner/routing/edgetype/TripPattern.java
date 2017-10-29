@@ -74,6 +74,7 @@ public class TripPattern implements Cloneable, Serializable {
     public static final int SHIFT_DROPOFF = 3;
     public static final int NO_PICKUP = 1;
     public static final int FLAG_BIKES_ALLOWED = 32;
+    private static final int FLAG_WHEELCHAIR_NOT_TOTALLY_ACCESSIBLE = 1;
 
     /**
      * The GTFS Route of all trips in this pattern.
@@ -196,8 +197,11 @@ public class TripPattern implements Cloneable, Serializable {
         int i = 0;
         for (Stop stop : stopPattern.stops) {
             // Assume that stops can be boarded with wheelchairs by default (defer to per-trip data)
-            if (stop.getWheelchairBoarding() != 2) {
+            if (stop.getWheelchairBoarding() < 2) {
                 perStopFlags[i] |= FLAG_WHEELCHAIR_ACCESSIBLE;
+            }
+            else if (stop.getWheelchairBoarding() == 3) {
+                perStopFlags[i] |= FLAG_WHEELCHAIR_NOT_TOTALLY_ACCESSIBLE;
             }
             perStopFlags[i] |= stopPattern.pickups[i] << SHIFT_PICKUP;
             perStopFlags[i] |= stopPattern.dropoffs[i] << SHIFT_DROPOFF;
@@ -252,6 +256,11 @@ public class TripPattern implements Cloneable, Serializable {
     /** Returns whether a given stop is wheelchair-accessible. */
     public boolean wheelchairAccessible(int stopIndex) {
         return (perStopFlags[stopIndex] & FLAG_WHEELCHAIR_ACCESSIBLE) != 0;
+    }
+
+    /** Returns whether a given stop is wheelchair-accessible. */
+    public boolean wheelchairNotTotallyAccessible(int stopIndex) {
+        return (perStopFlags[stopIndex] & FLAG_WHEELCHAIR_NOT_TOTALLY_ACCESSIBLE) != 0;
     }
 
     /** Returns the zone of a given stop */

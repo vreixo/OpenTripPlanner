@@ -147,6 +147,24 @@ public class StateEditor {
         return false;
     }
 
+    public boolean weHaveTooMuchPollution(RoutingRequest options) {
+        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+        // walk limiting, in which case we want to cut off the search.
+        return child.pollutionWithWalkDistance >= options.maxAveragePollution || child.peakPollution >= options.maxPeakPollution;
+    }
+
+    public boolean weHaveTooMuchPollen(RoutingRequest options) {
+        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+        // walk limiting, in which case we want to cut off the search.
+        return child.pollenWithWalkDistance >= options.maxAveragePollen || child.peakPollen >= options.maxPeakPollen;
+    }
+
+    public boolean weHaveTooMuchNoise(RoutingRequest options) {
+        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+        // walk limiting, in which case we want to cut off the search.
+        return child.noiseWithWalkDistance >= options.maxAverageNoise || child.peakNoise >= options.maxPeakNoise;
+    }
+
     public boolean isMaxPreTransitTimeExceeded(RoutingRequest options) {
         return child.preTransitTime > options.maxPreTransitTime;
     }
@@ -229,6 +247,66 @@ public class StateEditor {
             return;
         }
         child.walkDistance += length;
+    }
+
+    public void incrementPollutionWithDistance(double pollution, double length) {
+        if (pollution < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        child.pollutionWithWalkDistance += pollution * length;
+    }
+
+    public void calculatePeakPollution(double pollution) {
+        if (pollution < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        if (pollution > child.peakPollution){
+            child.peakPollution = pollution;
+        }
+    }
+
+    public void incrementPollenWithDistance(double pollen, double length) {
+        if (pollen < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        child.pollenWithWalkDistance += pollen * length;
+    }
+
+    public void calculatePeakPollen(double pollen) {
+        if (pollen < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        if (pollen > child.peakPollen){
+            child.peakPollen = pollen;
+        }
+    }
+
+    public void incrementNoiseWithDistance(double noise, double length) {
+        if (noise < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        child.noiseWithWalkDistance += noise * length;
+    }
+
+    public void calculatePeakNoise(double noise) {
+        if (noise < 0) {
+            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
+            defectiveTraversal = true;
+            return;
+        }
+        if (noise > child.peakNoise){
+            child.peakNoise = noise;
+        }
     }
 
     public void incrementPreTransitTime(int seconds) {
@@ -482,6 +560,30 @@ public class StateEditor {
 
     public double getWalkDistance() {
         return child.getWalkDistance();
+    }
+
+    public double getAveragePollution(){
+        return child.getPollutionWithWalkDistance();
+    }
+
+    public double getPeakPollution(){
+        return child.getPeakPollution();
+    }
+
+    public double getAveragePollen(){
+        return child.getPollenWithWalkDistance();
+    }
+
+    public double getPeakPollen(){
+        return child.getPeakPollen();
+    }
+
+    public double getAverageNoise(){
+        return child.getNoiseWithWalkDistance();
+    }
+
+    public double getPeakNoise(){
+        return child.getPeakNoise();
     }
 
     public int getPreTransitTime() {

@@ -105,6 +105,17 @@ public class Place {
     public String bikeShareId;
 
     /**
+     * Grade of accesibility of the place for wheelchairs.
+     *  0 -> Not known
+     *  1 -> Total
+     *  2 -> None
+     *  3 -> Partial
+     */
+    @XmlAttribute
+    @JsonSerialize
+    public int wheelchairBoarding;
+
+    /**
      * Returns the geometry in GeoJSON format
      * @return
      */

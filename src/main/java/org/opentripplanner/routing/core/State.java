@@ -15,12 +15,14 @@ package org.opentripplanner.routing.core;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.routing.algorithm.NegativeWeightException;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
 import org.opentripplanner.routing.edgetype.*;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
@@ -73,6 +75,8 @@ public class State implements Cloneable {
 
     // track the states of all path parsers -- probably changes frequently
     protected int[] pathParserStates;
+
+    private List<EnvironmentalFactor> environmentalFactors;
     
     private static final Logger LOG = LoggerFactory.getLogger(State.class);
 
@@ -394,6 +398,14 @@ public class State implements Cloneable {
             return Math.abs(this.peakNoise - backState.peakNoise);
         else
             return 0.0;
+    }
+
+    public List<EnvironmentalFactor> getEnvironmentalFactors() {
+        return environmentalFactors;
+    }
+
+    public void setEnvironmentalFactors(List<EnvironmentalFactor> environmentalFactors) {
+        this.environmentalFactors = environmentalFactors;
     }
 
     public int getPreTransitTimeDelta () {

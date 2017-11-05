@@ -20,6 +20,8 @@ import org.opentripplanner.common.TurnRestriction;
 import org.opentripplanner.common.TurnRestrictionType;
 import org.opentripplanner.common.geometry.*;
 import org.opentripplanner.common.model.P2;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorMeasurement;
 import org.opentripplanner.routing.core.*;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
@@ -40,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -128,6 +131,8 @@ public class StreetEdge extends Edge implements Cloneable {
 
     private double noise;
 
+    private List<EnvironmentalFactorMeasurement> environmentalFactorsMeasurements = Collections.emptyList();
+
     public StreetEdge(StreetVertex v1, StreetVertex v2, LineString geometry,
                       I18NString name, double length,
                       StreetTraversalPermission permission, boolean back) {
@@ -140,15 +145,6 @@ public class StreetEdge extends Edge implements Cloneable {
         this.setPermission(permission);
         this.setCarSpeed(DEFAULT_CAR_SPEED);
         this.setWheelchairAccessible(true); // accessible by default
-        if (getPollution() == 0){
-            this.setPollution(Math.random() * 80); //random by default
-        }
-        if (getPollen() == 0){
-            this.setPollen(Math.random() * 60); //random by default
-        }
-        if (getNoise() == 0){
-            this.setNoise(Math.random() * 70); //random by default
-        }
         if (geometry != null) {
             try {
                 for (Coordinate c : geometry.getCoordinates()) {
@@ -1033,5 +1029,13 @@ public class StreetEdge extends Edge implements Cloneable {
 
     public void setNoise(double noise) {
         this.noise = noise;
+    }
+
+    public List<EnvironmentalFactorMeasurement> getEnvironmentalFactorsMeasurements() {
+        return environmentalFactorsMeasurements;
+    }
+
+    public void addEnvironmentalFactors(List<EnvironmentalFactorMeasurement> environmentalFactors) {
+        this.environmentalFactorsMeasurements.addAll(environmentalFactors);
     }
 }

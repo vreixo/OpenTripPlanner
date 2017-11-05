@@ -395,6 +395,15 @@ public abstract class RoutingResource {
     @QueryParam("wheelchairPartiallyAccessiblePenalty")
     protected Integer wheelchairPartiallyAccessiblePenalty;
 
+    /**
+     * An additional penalty added to boardings at stop where accessibility is not total.
+     * The value is in OTP's internal weight units, which are roughly equivalent to seconds.
+     * Set this to a high value to discourage these stations.  Of course, transfers that save
+     * significant time or walking will still be taken.
+     */
+    @QueryParam("environmentalFactors")
+    protected String environmentalFactors;
+
     /*
      * somewhat ugly bug fix: the graphService is only needed here for fetching per-graph time zones.
      * this should ideally be done when setting the routing context, but at present departure/
@@ -629,6 +638,9 @@ public abstract class RoutingResource {
 
         if (wheelchairPartiallyAccessiblePenalty != null)
             request.wheelchairPartiallyAccessiblePenalty = wheelchairPartiallyAccessiblePenalty;
+
+        if (environmentalFactors != null)
+            request.environmentalFactorThresholds = new EnvironmentalFactorsThresholdsBuilder().builder(environmentalFactors);
 
         //getLocale function returns defaultLocale if locale is null
         request.locale = ResourceBundleSingleton.INSTANCE.getLocale(locale);

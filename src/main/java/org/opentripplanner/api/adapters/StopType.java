@@ -104,12 +104,6 @@ public class StopType {
     @JsonSerialize
     String parentStation;
 
-    /**
-     * Describes the problems accessing stations on wheelchair.
-     *  0 -> No problemwheelchairBoarding
-     *  1 -> At least one station had partial accessibility
-     *  2 -> At least one station had no accessibility
-     */
     @XmlAttribute
     @JsonSerialize
     Integer wheelchairBoarding;

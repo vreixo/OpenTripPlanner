@@ -21,6 +21,8 @@ import org.opentripplanner.api.parameter.QualifiedModeSet;
 import org.opentripplanner.common.MavenVersion;
 import org.opentripplanner.common.model.GenericLocation;
 import org.opentripplanner.common.model.NamedPlace;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorThreshold;
 import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.error.TrivialPathException;
 import org.opentripplanner.routing.graph.Edge;
@@ -34,15 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.TimeZone;
+import java.util.*;
 
 /**
  * A trip planning request. Some parameters may not be honored by the trip planner for some or all itineraries.
@@ -484,6 +478,8 @@ public class RoutingRequest implements Cloneable, Serializable {
     public double softPeakNoisePenalty = 60.0; // a jump in cost when stepping over the peak noise limit
 
     public double wheelchairPartiallyAccessiblePenalty = 1200; // a jump in cost when stepping over the aditionalStationData limit
+
+    public List<EnvironmentalFactorThreshold> environmentalFactorThresholds = Collections.emptyList();
 
     /* CONSTRUCTORS */
 

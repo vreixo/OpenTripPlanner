@@ -13,21 +13,8 @@
 
 package org.opentripplanner.updater.environmental;
 
-import com.thanglequoc.aqicalculator.PollutantCode;
-
-import static com.thanglequoc.aqicalculator.PollutantCode.*;
-
 public enum ParameterAir {
 
-    co(CO), so2(SO2), no2(NO2), o3(O3), pm10(PM10), pm25(PM25);
+    co, so2, no2, o3, pm10, pm25;
 
-    private final PollutantCode pollutantCode;
-
-    ParameterAir(PollutantCode pollutantCode) {
-        this.pollutantCode = pollutantCode;
-    }
-
-    public PollutantCode getPollutantCode() {
-        return pollutantCode;
-    }
 }

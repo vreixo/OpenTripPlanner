@@ -4,28 +4,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorThreshold;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 
-class EnvironmentalFactorsThresholdsBuilderTest {
+public class EnvironmentalFactorsThresholdsBuilderTest {
 
     @Test
-    void shouldReturnEmptyListWhenStringIsNull() {
+    public void shouldReturnEmptyListWhenStringIsNull() {
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(null);
 
         assertThat(result).hasSize(0);
     }
 
     @Test
-    void shouldReturnEmptyListWhenStringIsEmpty() {
+    public void shouldReturnEmptyListWhenStringIsEmpty() {
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build("");
 
         assertThat(result).hasSize(0);
     }
 
     @Test
-    void shouldReturnOneElementWithMaxAverage() {
+    public void shouldReturnOneElementWithMaxAverage() {
         final String averagePollution = "ENVIRONMENTAL_POLLUTION_MAX_AVERAGE=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(averagePollution);
@@ -37,7 +37,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnOneElementWithMaxPeak() {
+    public void shouldReturnOneElementWithMaxPeak() {
         final String averagePollution = "ENVIRONMENTAL_POLLUTION_MAX_PEAK=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(averagePollution);
@@ -49,7 +49,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnZeroElementsWhenStringDoesntContainEnviromentalFactor() {
+    public void shouldReturnZeroElementsWhenStringDoesntContainEnviromentalFactor() {
         final String noEnviromental = "NO_ENVIRONMENTAL_POLLUTION_MAX_AVERAGE=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(noEnviromental);
@@ -58,7 +58,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnZeroElementsWhenStringDoesntContainKnownEnviromentalFactor() {
+    public void shouldReturnZeroElementsWhenStringDoesntContainKnownEnviromentalFactor() {
         final String unknownFactor = "ENVIRONMENTAL_GARBAGE_MAX_AVERAGE=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(unknownFactor);
@@ -67,7 +67,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnZeroElementsWhenStringDoesntContainKnownProperty() {
+    public void shouldReturnZeroElementsWhenStringDoesntContainKnownProperty() {
         final String unknownProperty = "ENVIRONMENTAL_POLLUTION_MAX_NUMBER=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(unknownProperty);
@@ -76,7 +76,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnOneElementWithBothProperties() {
+    public void shouldReturnOneElementWithBothProperties() {
         final String averagePollution = "ENVIRONMENTAL_POLLUTION_MAX_AVERAGE=5.0&ENVIRONMENTAL_POLLUTION_MAX_PEAK=10.0";
 
         List<EnvironmentalFactorThreshold> result = EnvironmentalFactorsThresholdsBuilder.build(averagePollution);
@@ -88,7 +88,7 @@ class EnvironmentalFactorsThresholdsBuilderTest {
     }
 
     @Test
-    void shouldReturnListWithKnownEnvironmentalFactors() {
+    public void shouldReturnListWithKnownEnvironmentalFactors() {
         String inputWithTwoWholeFactors = "ENVIRONMENTAL_POLLUTION_MAX_AVERAGE=5.0&ENVIRONMENTAL_POLLUTION_MAX_PEAK=15.0&"
                 + "ENVIRONMENTAL_ALLERGIC_MAX_AVERAGE=10.0&"
                 + "ENVIRONMENTAL_GARBAGE_MAX_AVERAGE=5.0&" + "ENVIRONMENTAL_NOISE_MAX_PEAK=7.0";

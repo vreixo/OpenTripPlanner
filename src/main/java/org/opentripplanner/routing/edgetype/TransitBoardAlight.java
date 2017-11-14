@@ -297,13 +297,6 @@ public class TransitBoardAlight extends TablePatternEdge implements OnboardEdge 
             /* Check if route is preferred by the user. */
             long preferences_penalty = options.preferencesPenaltyForRoute(getPattern().route);
 
-            double notTotallyWheelchairAccessiblePenalty = 0;
-
-            if (options.wheelchairAccessible && ! getPattern().wheelchairNotTotallyAccessible(stopIndex)){
-                //Number of seconds we prefer to wait instead
-                notTotallyWheelchairAccessiblePenalty = options.wheelchairPartiallyAccessiblePenalty;
-            }
-
             /* Compute penalty for non-preferred transfers. */
             int transferPenalty = 0;
             /* If this is not the first boarding, then we are transferring. */
@@ -340,7 +333,6 @@ public class TransitBoardAlight extends TablePatternEdge implements OnboardEdge 
             
             s1.incrementWeight(preferences_penalty);
             s1.incrementWeight(transferPenalty);
-            s1.incrementWeight(notTotallyWheelchairAccessiblePenalty);
 
             // when reverse optimizing, the board cost needs to be applied on
             // alight to prevent state domination due to free alights

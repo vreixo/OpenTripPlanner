@@ -41,10 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * This represents a street segment.
@@ -131,7 +128,7 @@ public class StreetEdge extends Edge implements Cloneable {
 
     private double noise;
 
-    private List<EnvironmentalFactorMeasurement> environmentalFactorsMeasurements = Collections.emptyList();
+    private List<EnvironmentalFactorMeasurement> environmentalFactorsMeasurements = new ArrayList<>();
 
     public StreetEdge(StreetVertex v1, StreetVertex v2, LineString geometry,
                       I18NString name, double length,

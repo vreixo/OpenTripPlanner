@@ -25,11 +25,11 @@ public class EnvironmentalFactorsThresholdsBuilder {
          MAX_AVERAGE: 3
          */
 
-        Map<EnvironmentalFactorType, Pair<Double, Double>> weightsPerFactor = Collections
-                .singletonMap()
+//        Map<EnvironmentalFactorType, Pair<Double, Double>> weightsPerFactor = Collections
+//                .singletonMap()
 
-        public List<EnvironmentalFactorThreshold> builder(String routingRequest) {
-
-        }
+//        public List<EnvironmentalFactorThreshold> builder(String routingRequest) {
+//
+//        }
 
 }

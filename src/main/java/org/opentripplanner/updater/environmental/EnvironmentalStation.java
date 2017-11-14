@@ -13,13 +13,16 @@
 
 package org.opentripplanner.updater.environmental;
 
-import org.opentripplanner.routing.constraints.EnvironmentalFactor;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorMeasurement;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.util.I18NString;
 import org.opentripplanner.util.ResourceBundleSingleton;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
 
 public abstract class EnvironmentalStation {
 
@@ -31,114 +34,105 @@ public abstract class EnvironmentalStation {
 
     private final I18NString country;
 
-    protected final List<EnvironmentalStationMeasurement> measurements;
+    private List<EnvironmentalStationMeasurement> measurements = new ArrayList<>();
 
     private final double x, y; //longitude, latitude
 
-        public String getId() {
-                return id;
+    public String getId() {
+        return id;
+    }
+
+    public List<EnvironmentalStationMeasurement> getMeasurements() {
+        return measurements;
+    }
+
+    public void addMeasurements(List<EnvironmentalStationMeasurement> measurements) {
+        this.measurements.addAll(measurements);
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public EnvironmentalStation(String id, I18NString location, I18NString city,
+                                I18NString country, List<EnvironmentalStationMeasurement> measurements, double x, double y) {
+        this.id = id;
+        this.location = location;
+        this.city = city;
+        this.country = country;
+        this.measurements = measurements;
+        this.x = x;
+        this.y = y;
+    }
+
+    protected EnvironmentalFactorMeasurement getFactor(Map<String, Double> weightsPerSubFactors,
+                                                       EnvironmentalFactorType type, Function<List<Double>, Double> aggregator) {
+        int numberOfSubFactors = 0;
+        List<Double> weightedValues = new ArrayList<>();
+        for (EnvironmentalStationMeasurement measurement : getMeasurements()) {
+            Double weight = weightsPerSubFactors.get(measurement.getParameter());
+            if (weight != null) {
+                weightedValues.add(weight * measurement.getValue());
+                numberOfSubFactors += 1;
+            }
         }
-
-        public List<EnvironmentalStationMeasurement> getMeasurements() {
-                return measurements;
+         if (numberOfSubFactors > 1) {
+            EnvironmentalFactorMeasurement environmentalFactorMeasurement = new EnvironmentalFactorMeasurement();
+            environmentalFactorMeasurement.setType(type);
+            final double measurement;
+            if (aggregator != null) {
+                measurement = aggregator.apply(weightedValues);
+            }
+            else {
+                measurement = getAverage(numberOfSubFactors, weightedValues);
+            }
+            environmentalFactorMeasurement.setMeasurement(measurement);
+            return environmentalFactorMeasurement;
         }
-
-        public double getX() {
-                return x;
+        else {
+            return null;
         }
+    }
 
-        public double getY() {
-                return y;
-        }
+    private double getAverage(int numberOfSubFactors, List<Double> weightedValues) {
+        return weightedValues.stream().mapToDouble(Double::doubleValue).sum() / numberOfSubFactors;
+    }
 
-        public EnvironmentalStation(String id, I18NString location, I18NString city,
-                I18NString country, List<EnvironmentalStationMeasurement> measurements, double x, double y) {
-                this.id = id;
-                this.location = location;
-                this.city = city;
-                this.country = country;
-                this.measurements = measurements;
-                this.x = x;
-                this.y = y;
-        }
+    public Locale locale = ResourceBundleSingleton.INSTANCE.getLocale(null);
 
-        public Locale locale = ResourceBundleSingleton.INSTANCE.getLocale(null);
+    /**
+     * Gets translated location of environmental station based on locale
+     */
+    public String getLocation() {
+        return location.toString(locale);
+    }
 
-        /**
-         * Gets translated location of environmental station based on locale
-         */
-        public String getLocation() {
-                return location.toString(locale);
-        }
+    /**
+     * Gets translated city of environmental station based on locale
+     */
+    public String getCity() {
+        return city.toString(locale);
+    }
 
-        /**
-         * Gets translated city of environmental station based on locale
-         */
-        public String getCity() {
-                return city.toString(locale);
-        }
+    /**
+     * Gets translated country of environmental station based on locale
+     */
+    public String getCountry() {
+        return country.toString(locale);
+    }
 
-        /**
-         * Gets translated country of environmental station based on locale
-         */
-        public String getCountry() {
-                return country.toString(locale);
-        }
+    public Locale getLocale() {
+        return locale;
+    }
 
-        public abstract List<EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements();
+    public void setLocale(Locale locale) {
+        this.locale = locale;
+    }
 
-        public static EnvironmentalStationBuilder builder() {
-                return new EnvironmentalStationBuilder();
-        }
+    public abstract List<EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements();
 
-        public static class EnvironmentalStationBuilder {
-                private String id;
-
-                private I18NString location;
-
-                private I18NString city;
-
-                private I18NString country;
-
-                private List<EnvironmentalStationMeasurement> measurements;
-
-                private double x;
-
-                private double y;
-
-                public EnvironmentalStationBuilder id(String id) {
-                        this.id = id;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder location(I18NString location) {
-                        this.location = location;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder city(I18NString city) {
-                        this.city = city;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder country(I18NString country) {
-                        this.country = country;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder measurements(List<EnvironmentalStationMeasurement> measurements) {
-                        this.measurements = measurements;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder x(double x) {
-                        this.x = x;
-                        return this;
-                }
-
-                public EnvironmentalStationBuilder y(double y) {
-                        this.y = y;
-                        return this;
-                }
-        }
 }

@@ -67,9 +67,9 @@ public interface StreetVertexIndexService {
     public Vertex getVertexForLocation(GenericLocation place, RoutingRequest options,
                                        boolean endVertex);
 
-	/** Get a vertex at a given coordinate, using the same logic as in Samples. Used in Analyst
-	 * so that origins and destinations are linked the same way. */
-	public Vertex getSampleVertexAt(Coordinate coordinate, boolean dest);
+    /** Get a vertex at a given coordinate, using the same logic as in Samples. Used in Analyst
+     * so that origins and destinations are linked the same way. */
+    public Vertex getSampleVertexAt(Coordinate coordinate, boolean dest);
 
     /**
      * Get all edges With points closer of a coordinate

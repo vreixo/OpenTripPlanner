@@ -112,7 +112,7 @@ public class StreetVertexIndexServiceImpl implements StreetVertexIndexService {
             simpleStreetSplitter = new SimpleStreetSplitter(this.graph, null, null, false);
         } else {
             simpleStreetSplitter = new SimpleStreetSplitter(this.graph,
-                (HashGridSpatialIndex<Edge>) edgeTree, transitStopTree, false);
+                    (HashGridSpatialIndex<Edge>) edgeTree, transitStopTree, false);
         }
 
     }
@@ -132,7 +132,7 @@ public class StreetVertexIndexServiceImpl implements StreetVertexIndexService {
      * @return the new TemporaryStreetLocation
      */
     public static TemporaryStreetLocation createTemporaryStreetLocation(Graph graph, String label,
-            I18NString name, Iterable<StreetEdge> edges, Coordinate nearestPoint, boolean endVertex) {
+                                                                        I18NString name, Iterable<StreetEdge> edges, Coordinate nearestPoint, boolean endVertex) {
         boolean wheelchairAccessible = false;
 
         TemporaryStreetLocation location = new TemporaryStreetLocation(label, nearestPoint, name,
@@ -176,7 +176,7 @@ public class StreetVertexIndexServiceImpl implements StreetVertexIndexService {
     }
 
     private static void createHalfLocation(TemporaryStreetLocation base, I18NString name,
-                Coordinate nearestPoint, StreetEdge street, boolean endVertex) {
+                                           Coordinate nearestPoint, StreetEdge street, boolean endVertex) {
         StreetVertex tov = (StreetVertex) street.getToVertex();
         StreetVertex fromv = (StreetVertex) street.getFromVertex();
         LineString geometry = street.getGeometry();
@@ -203,7 +203,7 @@ public class StreetVertexIndexServiceImpl implements StreetVertexIndexService {
 
             temporaryPartialStreetEdge.setElevationProfile(ElevationUtils
                     .getPartialElevationProfile(street.getElevationProfile(), lengthIn,
-                    lengthIn + lengthOut), false);
+                            lengthIn + lengthOut), false);
             temporaryPartialStreetEdge.setStreetClass(street.getStreetClass());
             temporaryPartialStreetEdge.setNoThruTraffic(street.isNoThruTraffic());
         }
@@ -223,7 +223,7 @@ public class StreetVertexIndexServiceImpl implements StreetVertexIndexService {
              * index transit edges as we do not need them and some GTFS do not have shape data, so
              * long straight lines between 2 faraway stations will wreck performance on a hash grid
              * spatial index.
-             * 
+             *
              * If one need to store transit edges in the index, we could improve the hash grid
              * rasterizing splitting long segments.
              */

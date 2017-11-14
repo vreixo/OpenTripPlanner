@@ -388,7 +388,7 @@ public class RoutingRequest implements Cloneable, Serializable {
      * RoutingContexts for everything because in some testing and graph building situations we need to build a bunch of
      * initial states with different times and vertices from a single TraverseOptions, without setting all the transit
      * context or building temporary vertices (with all the exception-throwing checks that entails).
-     * 
+     *
      * While they are conceptually separate, TraverseOptions does maintain a reference to its accompanying
      * RoutingContext (and vice versa) so that both do not need to be passed/injected separately into tight inner loops
      * within routing algorithms. These references should be set to null when the request scope is torn down -- the
@@ -1030,14 +1030,14 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     public double getSpeed(TraverseMode mode) {
         switch (mode) {
-        case WALK:
-            return walkSpeed;
-        case BICYCLE:
-            return bikeSpeed;
-        case CAR:
-            return carSpeed;
-        default:
-            break;
+            case WALK:
+                return walkSpeed;
+            case BICYCLE:
+                return bikeSpeed;
+            case CAR:
+                return carSpeed;
+            default:
+                break;
         }
         throw new IllegalArgumentException("getSpeed(): Invalid mode " + mode);
     }

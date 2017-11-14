@@ -13,15 +13,11 @@
 
 package org.opentripplanner.updater.environmental;
 
-import com.thanglequoc.aqicalculator.AQICalculator;
-import com.thanglequoc.aqicalculator.AQIResult;
-import com.thanglequoc.aqicalculator.PollutantCode;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorMeasurement;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.util.I18NString;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 

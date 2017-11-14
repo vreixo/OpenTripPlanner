@@ -36,6 +36,8 @@ import org.opentripplanner.updater.JsonConfigurable;
 import org.opentripplanner.updater.PollingGraphUpdater;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Dynamic bike-rental station updater which encapsulate one BikeRentalDataSource.

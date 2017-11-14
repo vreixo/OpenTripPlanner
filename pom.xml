@@ -8,7 +8,7 @@
 
     <groupId>org.opentripplanner</groupId>
     <artifactId>otp</artifactId>
-    <version>1.2.0-MOBIAUTENTIA-SNAPSHOT</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <licenses>
@@ -599,13 +599,13 @@
 
         <!-- Jackson modules. -->
         <dependency>
-           <groupId>com.fasterxml.jackson.core</groupId>
-           <artifactId>jackson-core</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
-           <groupId>com.fasterxml.jackson.core</groupId>
-           <artifactId>jackson-databind</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <!-- Jackson modules to serialize Jersey response objects to JSON. -->
@@ -794,13 +794,6 @@
             <groupId>io.opentraffic</groupId>
             <artifactId>traffic-engine</artifactId>
             <version>0.2</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.github.thanglequoc/aqi-calculator -->
-        <dependency>
-            <groupId>com.github.thanglequoc</groupId>
-            <artifactId>aqi-calculator</artifactId>
-            <version>1.2.2</version>
         </dependency>
 
         <!-- r5 is needed only so that we can delegate Analyst work to it -->

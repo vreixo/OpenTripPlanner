@@ -147,23 +147,23 @@ public class StateEditor {
         return false;
     }
 
-    public boolean weHaveTooMuchPollution(RoutingRequest options) {
-        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-        // walk limiting, in which case we want to cut off the search.
-        return child.pollutionWithWalkDistance >= options.maxAveragePollution || child.peakPollution >= options.maxPeakPollution;
-    }
-
-    public boolean weHaveTooMuchPollen(RoutingRequest options) {
-        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-        // walk limiting, in which case we want to cut off the search.
-        return child.pollenWithWalkDistance >= options.maxAveragePollen || child.peakPollen >= options.maxPeakPollen;
-    }
-
-    public boolean weHaveTooMuchNoise(RoutingRequest options) {
-        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-        // walk limiting, in which case we want to cut off the search.
-        return child.noiseWithWalkDistance >= options.maxAverageNoise || child.peakNoise >= options.maxPeakNoise;
-    }
+//    public boolean weHaveTooMuchPollution(RoutingRequest options) {
+//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+//        // walk limiting, in which case we want to cut off the search.
+//        return child.pollutionWithWalkDistance >= options.maxAveragePollution || child.peakPollution >= options.maxPeakPollution;
+//    }
+//
+//    public boolean weHaveTooMuchPollen(RoutingRequest options) {
+//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+//        // walk limiting, in which case we want to cut off the search.
+//        return child.pollenWithWalkDistance >= options.maxAveragePollen || child.peakPollen >= options.maxPeakPollen;
+//    }
+//
+//    public boolean weHaveTooMuchNoise(RoutingRequest options) {
+//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+//        // walk limiting, in which case we want to cut off the search.
+//        return child.noiseWithWalkDistance >= options.maxAverageNoise || child.peakNoise >= options.maxPeakNoise;
+//    }
 
     public boolean isMaxPreTransitTimeExceeded(RoutingRequest options) {
         return child.preTransitTime > options.maxPreTransitTime;

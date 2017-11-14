@@ -132,30 +132,30 @@ public abstract class GraphPathToTripPlanConverter {
         if (itinerary.walkDistance > request.maxWalkDistance) {
             itinerary.walkLimitExceeded = true;
         }
-        // Check pollutionWithWalkDistance level limit
-        if (itinerary.averagePollution > request.maxAveragePollution) {
-            itinerary.averagePollutionLimitExceeded = true;
-        }
-        // Check pollutionWithWalkDistance level limit
-        if (itinerary.peakPollution > request.maxPeakPollution) {
-            itinerary.peakPollutionLimitExceeded = true;
-        }
-        // Check pollenWithWalkDistance level limit
-        if (itinerary.averagePollen > request.maxAveragePollen) {
-            itinerary.averagePollenLimitExceeded = true;
-        }
-        // Check pollenWithWalkDistance level limit
-        if (itinerary.peakPollen > request.maxPeakPollen) {
-            itinerary.peakPollenLimitExceeded = true;
-        }
-        // Check pollutionWithWalkDistance level limit
-        if (itinerary.averageNoise > request.maxAverageNoise) {
-            itinerary.averageNoiseLimitExceeded = true;
-        }
-        // Check pollutionWithWalkDistance level limit
-        if (itinerary.peakNoise > request.maxPeakNoise) {
-            itinerary.peakNoiseLimitExceeded = true;
-        }
+//        // Check pollutionWithWalkDistance level limit
+//        if (itinerary.averagePollution > request.maxAveragePollution) {
+//            itinerary.averagePollutionLimitExceeded = true;
+//        }
+//        // Check pollutionWithWalkDistance level limit
+//        if (itinerary.peakPollution > request.maxPeakPollution) {
+//            itinerary.peakPollutionLimitExceeded = true;
+//        }
+//        // Check pollenWithWalkDistance level limit
+//        if (itinerary.averagePollen > request.maxAveragePollen) {
+//            itinerary.averagePollenLimitExceeded = true;
+//        }
+//        // Check pollenWithWalkDistance level limit
+//        if (itinerary.peakPollen > request.maxPeakPollen) {
+//            itinerary.peakPollenLimitExceeded = true;
+//        }
+//        // Check pollutionWithWalkDistance level limit
+//        if (itinerary.averageNoise > request.maxAverageNoise) {
+//            itinerary.averageNoiseLimitExceeded = true;
+//        }
+//        // Check pollutionWithWalkDistance level limit
+//        if (itinerary.peakNoise > request.maxPeakNoise) {
+//            itinerary.peakNoiseLimitExceeded = true;
+//        }
         // Return itinerary
         return itinerary;
     }
@@ -728,7 +728,6 @@ public abstract class GraphPathToTripPlanConverter {
             place.platformCode = stop.getPlatformCode();
             place.zoneId = stop.getZoneId();
             place.stopIndex = ((OnboardEdge) edge).getStopIndex();
-            place.wheelchairBoarding = stop.getWheelchairBoarding();
             if (endOfLeg) place.stopIndex++;
             if (tripTimes != null) {
                 place.stopSequence = tripTimes.getStopSequence(place.stopIndex);

@@ -21,7 +21,6 @@ import org.opentripplanner.api.parameter.QualifiedModeSet;
 import org.opentripplanner.common.MavenVersion;
 import org.opentripplanner.common.model.GenericLocation;
 import org.opentripplanner.common.model.NamedPlace;
-import org.opentripplanner.routing.constraints.EnvironmentalFactor;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorThreshold;
 import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.error.TrivialPathException;
@@ -36,7 +35,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TimeZone;
 
 /**
  * A trip planning request. Some parameters may not be honored by the trip planner for some or all itineraries.
@@ -146,14 +153,14 @@ public class RoutingRequest implements Cloneable, Serializable {
      * An extra penalty added on transfers (i.e. all boardings except the first one).
      * Not to be confused with bikeBoardCost and walkBoardCost, which are the cost of boarding a
      * vehicle with and without a bicycle. The boardCosts are used to model the 'usual' perceived
-     * cost of using a transit vehicle, and the transferPenalty is used when a user requests even 
-     * less transfers. In the latter case, we don't actually optimize for fewest transfers, as this 
-     * can lead to absurd results. Consider a trip in New York from Grand Army 
-     * Plaza (the one in Brooklyn) to Kalustyan's at noon. The true lowest transfers route is to 
-     * wait until midnight, when the 4 train runs local the whole way. The actual fastest route is 
+     * cost of using a transit vehicle, and the transferPenalty is used when a user requests even
+     * less transfers. In the latter case, we don't actually optimize for fewest transfers, as this
+     * can lead to absurd results. Consider a trip in New York from Grand Army
+     * Plaza (the one in Brooklyn) to Kalustyan's at noon. The true lowest transfers route is to
+     * wait until midnight, when the 4 train runs local the whole way. The actual fastest route is
      * the 2/3 to the 4/5 at Nevins to the 6 at Union Square, which takes half an hour.
-     * Even someone optimizing for fewest transfers doesn't want to wait until midnight. Maybe they 
-     * would be willing to walk to 7th Ave and take the Q to Union Square, then transfer to the 6. 
+     * Even someone optimizing for fewest transfers doesn't want to wait until midnight. Maybe they
+     * would be willing to walk to 7th Ave and take the Q to Union Square, then transfer to the 6.
      * If this takes less than optimize_transfer_penalty seconds, then that's what we'll return.
      */
     public int transferPenalty = 0;
@@ -166,7 +173,7 @@ public class RoutingRequest implements Cloneable, Serializable {
 
     /** Used instead of walk reluctance for stairs */
     public double stairsReluctance = 2.0;
-    
+
     /** Multiplicative factor on expected turning time. */
     public double turnReluctance = 1.0;
 
@@ -252,17 +259,17 @@ public class RoutingRequest implements Cloneable, Serializable {
     public HashMap<AgencyAndId, BannedStopSet> bannedTrips = new HashMap<AgencyAndId, BannedStopSet>();
 
     /** Do not use certain stops. See for more information the bannedStops property in the RoutingResource class. */
-    public StopMatcher bannedStops = StopMatcher.emptyMatcher(); 
-    
+    public StopMatcher bannedStops = StopMatcher.emptyMatcher();
+
     /** Do not use certain stops. See for more information the bannedStopsHard property in the RoutingResource class. */
-    public StopMatcher bannedStopsHard = StopMatcher.emptyMatcher(); 
-    
+    public StopMatcher bannedStopsHard = StopMatcher.emptyMatcher();
+
     /** Set of preferred routes by user. */
     public RouteMatcher preferredRoutes = RouteMatcher.emptyMatcher();
-    
+
     /** Set of preferred agencies by user. */
     public HashSet<String> preferredAgencies = new HashSet<String>();
-    
+
     /**
      * Penalty added for using every route that is not preferred if user set any route as preferred. We return number of seconds that we are willing
      * to wait for preferred route.
@@ -271,7 +278,7 @@ public class RoutingRequest implements Cloneable, Serializable {
 
     /** Set of unpreferred routes for given user. */
     public RouteMatcher unpreferredRoutes = RouteMatcher.emptyMatcher();
-    
+
     /** Set of unpreferred agencies for given user. */
     public HashSet<String> unpreferredAgencies = new HashSet<String>();
 
@@ -296,8 +303,8 @@ public class RoutingRequest implements Cloneable, Serializable {
     public int maxTransfers = 2;
 
     /**
-     * Extensions to the trip planner will require additional traversal options beyond the default 
-     * set. We provide an extension point for adding arbitrary parameters with an 
+     * Extensions to the trip planner will require additional traversal options beyond the default
+     * set. We provide an extension point for adding arbitrary parameters with an
      * extension-specific key.
      */
     public Map<Object, Object> extensions = new HashMap<Object, Object>();
@@ -306,7 +313,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     public int nonpreferredTransferPenalty = 180;
 
     /**
-     * For the bike triangle, how important time is. 
+     * For the bike triangle, how important time is.
      * triangleTimeFactor+triangleSlopeFactor+triangleSafetyFactor == 1
      */
     public double triangleTimeFactor;
@@ -363,7 +370,7 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     // 2.9 m/s/s: 0 mph to 65 mph in 10 seconds
     public double carAccelerationSpeed = 2.9;
-    
+
     /**
      * When true, realtime updates are ignored during this search.
      */
@@ -381,7 +388,7 @@ public class RoutingRequest implements Cloneable, Serializable {
      * RoutingContexts for everything because in some testing and graph building situations we need to build a bunch of
      * initial states with different times and vertices from a single TraverseOptions, without setting all the transit
      * context or building temporary vertices (with all the exception-throwing checks that entails).
-     * 
+     *
      * While they are conceptually separate, TraverseOptions does maintain a reference to its accompanying
      * RoutingContext (and vice versa) so that both do not need to be passed/injected separately into tight inner loops
      * within routing algorithms. These references should be set to null when the request scope is torn down -- the
@@ -392,7 +399,7 @@ public class RoutingRequest implements Cloneable, Serializable {
 
     /** A transit stop that this trip must start from */
     public AgencyAndId startingTransitStopId;
-    
+
     /** A trip where this trip must start from (depart-onboard routing) */
     public AgencyAndId startingTransitTripId;
 
@@ -441,45 +448,7 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     private StreetEdge splitEdge = null;
 
-    public double maxAveragePollution = Double.MAX_VALUE;
-
-    public double maxPeakPollution = Double.MAX_VALUE;
-
-    public boolean softAveragePollutionLimiting = true;
-    public double softAveragePollutionOverageRate = 5.0; // a jump in cost for every meter over the average pollution limit
-    public double softAveragePollutionPenalty = 60.0; // a jump in cost when stepping over the average pollution limit
-
-    public boolean softPeakPollutionLimiting = true;
-    public double softPeakPollutionOverageRate = 5.0; // a jump in cost for every meter over the peak pollution limit
-    public double softPeakPollutionPenalty = 60.0; // a jump in cost when stepping over the peak pollution limit
-
-    public double maxAveragePollen = Double.MAX_VALUE;
-
-    public double maxPeakPollen = Double.MAX_VALUE;
-
-    public boolean softAveragePollenLimiting = true;
-    public double softAveragePollenOverageRate = 5.0; // a jump in cost for every meter over the average pollen limit
-    public double softAveragePollenPenalty = 60.0; // a jump in cost when stepping over the average pollen limit
-
-    public boolean softPeakPollenLimiting = true;
-    public double softPeakPollenOverageRate = 5.0; // a jump in cost for every meter over the peak pollen limit
-    public double softPeakPollenPenalty = 60.0; // a jump in cost when stepping over the peak pollen limit
-
-    public double maxAverageNoise = Double.MAX_VALUE;
-
-    public double maxPeakNoise = Double.MAX_VALUE;
-
-    public boolean softAverageNoiseLimiting = true;
-    public double softAverageNoiseOverageRate = 5.0; // a jump in cost for every meter over the average noise limit
-    public double softAverageNoisePenalty = 60.0; // a jump in cost when stepping over the average noise limit
-
-    public boolean softPeakNoiseLimiting = true;
-    public double softPeakNoiseOverageRate = 5.0; // a jump in cost for every meter over the peak noise limit
-    public double softPeakNoisePenalty = 60.0; // a jump in cost when stepping over the peak noise limit
-
-    public double wheelchairPartiallyAccessiblePenalty = 1200; // a jump in cost when stepping over the aditionalStationData limit
-
-    public List<EnvironmentalFactorThreshold> environmentalFactorThresholds = Collections.emptyList();
+    public List<EnvironmentalFactorThreshold> environmentalFactorThresholds = new ArrayList<>();
 
     /* CONSTRUCTORS */
 
@@ -620,7 +589,7 @@ public class RoutingRequest implements Cloneable, Serializable {
     public IntersectionTraversalCostModel getIntersectionTraversalCostModel() {
         return traversalCostModel;
     }
-    
+
     /** @return the (soft) maximum walk distance */
     // If transit is not to be used and this is a point to point search
     // or one with soft walk limiting, disable walk limit.
@@ -628,10 +597,10 @@ public class RoutingRequest implements Cloneable, Serializable {
         if (modes.isTransit() || (batch && !softWalkLimiting)) {
             return maxWalkDistance;
         } else {
-            return Double.MAX_VALUE;            
+            return Double.MAX_VALUE;
         }
     }
-    
+
     public void setWalkBoardCost(int walkBoardCost) {
         if (walkBoardCost < 0) {
             this.walkBoardCost = 0;
@@ -640,7 +609,7 @@ public class RoutingRequest implements Cloneable, Serializable {
             this.walkBoardCost = walkBoardCost;
         }
     }
-    
+
     public void setBikeBoardCost(int bikeBoardCost) {
         if (bikeBoardCost < 0) {
             this.bikeBoardCost = 0;
@@ -649,7 +618,7 @@ public class RoutingRequest implements Cloneable, Serializable {
             this.bikeBoardCost = bikeBoardCost;
         }
     }
-    
+
     public void setPreferredAgencies(String s) {
         if (s != null && !s.equals(""))
             preferredAgencies = new HashSet<String>(Arrays.asList(s.split(",")));
@@ -661,17 +630,17 @@ public class RoutingRequest implements Cloneable, Serializable {
         else
             preferredRoutes = RouteMatcher.emptyMatcher();
     }
-    
+
     public void setOtherThanPreferredRoutesPenalty(int penalty) {
         if(penalty < 0) penalty = 0;
         this.otherThanPreferredRoutesPenalty = penalty;
     }
-    
+
     public void setUnpreferredAgencies(String s) {
         if (s != null && !s.equals(""))
             unpreferredAgencies = new HashSet<String>(Arrays.asList(s.split(",")));
     }
-    
+
     public void setUnpreferredRoutes(String s) {
         if (s != null && !s.equals(""))
             unpreferredRoutes = RouteMatcher.parse(s);
@@ -703,7 +672,7 @@ public class RoutingRequest implements Cloneable, Serializable {
             bannedStopsHard = StopMatcher.emptyMatcher();
         }
     }
-    
+
     public void setBannedAgencies(String s) {
         if (s != null && !s.equals(""))
             bannedAgencies = new HashSet<String>(Arrays.asList(s.split(",")));
@@ -755,7 +724,7 @@ public class RoutingRequest implements Cloneable, Serializable {
         setDateTime(dateObject);
     }
 
-    public int getNumItineraries() { 
+    public int getNumItineraries() {
         if (modes.isTransit()) {
             return numItineraries;
         } else {
@@ -791,14 +760,14 @@ public class RoutingRequest implements Cloneable, Serializable {
             intermediatePlaces.add(GenericLocation.fromOldStyleString(place));
         }
     }
-    
+
     /** Clears any intermediate places from this request. */
     public void clearIntermediatePlaces() {
         if (this.intermediatePlaces != null) {
             this.intermediatePlaces.clear();
         }
     }
-    
+
     /**
      * Returns true if there are any intermediate places set.
      */
@@ -896,7 +865,7 @@ public class RoutingRequest implements Cloneable, Serializable {
         this.rctx = new RoutingContext(this, graph, from, to);
         this.rctx.originBackEdge = fromBackEdge;
     }
-    
+
     public void setRoutingContext(Graph graph, Vertex from, Vertex to) {
         setRoutingContext(graph, null, from, to);
     }
@@ -951,8 +920,6 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && maxTransfers == other.maxTransfers
                 && modes.equals(other.modes)
                 && wheelchairAccessible == other.wheelchairAccessible
-                && maxAveragePollution == other.maxAveragePollution
-                && maxPeakPollution == other.maxPeakPollution
                 && optimize.equals(other.optimize)
                 && maxWalkDistance == other.maxWalkDistance
                 && maxTransferWalkDistance == other.maxTransferWalkDistance
@@ -998,7 +965,7 @@ public class RoutingRequest implements Cloneable, Serializable {
                 && useTraffic == other.useTraffic
                 && disableAlertFiltering == other.disableAlertFiltering
                 && geoidElevation == other.geoidElevation
-                && wheelchairPartiallyAccessiblePenalty == other.wheelchairPartiallyAccessiblePenalty;
+                && environmentalFactorThresholds == other.environmentalFactorThresholds;
     }
 
     /**
@@ -1011,8 +978,6 @@ public class RoutingRequest implements Cloneable, Serializable {
                 + new Double(carSpeed).hashCode() + new Double(maxWeight).hashCode()
                 + (int) (worstTime & 0xffffffff) + modes.hashCode()
                 + (arriveBy ? 8966786 : 0) + (wheelchairAccessible ? 731980 : 0)
-                + new Double(maxAveragePollution).hashCode() +
-                + new Double(maxPeakPollution).hashCode() +
                 + optimize.hashCode() + new Double(maxWalkDistance).hashCode()
                 + new Double(maxTransferWalkDistance).hashCode()
                 + new Double(transferPenalty).hashCode() + new Double(maxSlope).hashCode()
@@ -1030,7 +995,8 @@ public class RoutingRequest implements Cloneable, Serializable {
                 + new Boolean(reverseOptimizeOnTheFly).hashCode() * 95112799
                 + new Boolean(ignoreRealtimeUpdates).hashCode() * 154329
                 + new Boolean(disableRemainingWeightHeuristic).hashCode() * 193939
-                + new Boolean(useTraffic).hashCode() * 10169;
+                + new Boolean(useTraffic).hashCode() * 10169
+                + environmentalFactorThresholds.hashCode();
         if (batch) {
             hashCode *= -1;
             // batch mode, only one of two endpoints matters
@@ -1064,14 +1030,14 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     public double getSpeed(TraverseMode mode) {
         switch (mode) {
-        case WALK:
-            return walkSpeed;
-        case BICYCLE:
-            return bikeSpeed;
-        case CAR:
-            return carSpeed;
-        default:
-            break;
+            case WALK:
+                return walkSpeed;
+            case BICYCLE:
+                return bikeSpeed;
+            case CAR:
+                return carSpeed;
+            default:
+                break;
         }
         throw new IllegalArgumentException("getSpeed(): Invalid mode " + mode);
     }
@@ -1170,10 +1136,10 @@ public class RoutingRequest implements Cloneable, Serializable {
     public void banTrip(AgencyAndId trip) {
         bannedTrips.put(trip, BannedStopSet.ALL);
     }
-    
-    /** 
+
+    /**
      * tripIsBanned is a misnomer: this checks whether the agency or route are banned.
-     * banning of individual trips is actually performed inside the trip search, 
+     * banning of individual trips is actually performed inside the trip search,
      * in TripTimes.tripAcceptable.
      */
     public boolean tripIsBanned(Trip trip) {
@@ -1269,45 +1235,6 @@ public class RoutingRequest implements Cloneable, Serializable {
                 throw new TrivialPathException();
             }
         }
-    }
 
-    public double getMaxAveragePollution() {
-        return maxAveragePollution;
-    }
-
-    public double getMaxPeakPollution() {
-        return maxPeakPollution;
-    }
-
-    public double getMaxAveragePollen() {
-        return maxAveragePollen;
-    }
-
-    public double getMaxPeakPollen() {
-        return maxPeakPollen;
-    }
-
-    public double getMaxAverageNoise() {
-        return maxAverageNoise;
-    }
-
-    public double getMaxPeakNoise() {
-        return maxPeakNoise;
-    }
-
-    public void setMaxAveragePollen(double maxAveragePollen) {
-        this.maxAveragePollen = maxAveragePollen;
-    }
-
-    public void setMaxPeakPollen(double maxPeakPollen) {
-        this.maxPeakPollen = maxPeakPollen;
-    }
-
-    public void setMaxAverageNoise(double maxAverageNoise) {
-        this.maxAverageNoise = maxAverageNoise;
-    }
-
-    public void setMaxPeakNoise(double maxPeakNoise) {
-        this.maxPeakNoise = maxPeakNoise;
     }
 }

@@ -92,60 +92,7 @@ public class ExamplePollingGraphUpdater extends PollingGraphUpdater {
         @Override
         public void run(Graph graph) {
             LOG.info("ExampleGraphWriter {} runnable is run on the "
-                    + "graph writer scheduler.", this.hashCode());
-
-            //Sketch of graph Updater
-
-            //MOCK randomly evaluate stops
-//            int i = 0;
-//            final Random random = new Random();
-//            int jump = random.nextInt(30);
-//            if (jump == 0){
-//                jump = 1;
-//            }
-//            for (Stop stop : graph.index.stopForId.values()) {
-//                if (i % jump == 0) {
-//                    stop.setWheelchairBoarding(((int)Math.random() * 30));
-//                }
-//                i++;
-//            }
-
-            //MOCK update retrieving from server
-            //Agency and StopId AGENCYID_STOPID, EX for Metro: 4_est_4_1 (plaza de castilla)
-//            ObjectMapper mapper = new ObjectMapper();
-//            try {
-//                JsonNode actualObj = mapper.readTree("{\"agencyId\":\"4\", \"stopId\":\"est_4_1\", \"wheelchair\":2}");
-//                String agencyID = actualObj.get("agencyId").asText();
-//                String stopId = actualObj.get("stopId").asText();
-//                Integer wheelchair = actualObj.get("wheelchair").asInt();
-//
-//                Stop stop = graph.index.stopForId.get(new AgencyAndId("4", "est_4_1"));
-//                if (stop != null) {
-//                    stop.setWheelchairBoarding(3);
-//                }
-//
-//
-//                actualObj = mapper.readTree("{\"latitude\":\"40.3885381716506\", \"longitude\":\"-3.73150693296924\", \"aditionalStationData\":2}");
-//                Double latitude = actualObj.get("latitude").asDouble();
-//                Double longitude = actualObj.get("longitude").asDouble();
-//                Double pollutionLevel = actualObj.get("aditionalStationData").asDouble();
-//
-//                Coordinate lowerLeftCorner = new Coordinate(-1.7318, 35.3862);
-//                Coordinate upperRightCorner = new Coordinate(-9.7298, 45.3886);
-//
-//                Envelope envelope = new Envelope(upperRightCorner, lowerLeftCorner);
-//
-//                Collection<Edge> closeStreets = graph.streetIndex.getEdgesForEnvelope(new Envelope(new Coordinate(-3.5937729000000003, 40.4037839)));
-//                for (Edge closeStreet : closeStreets) {
-//                    if (closeStreet instanceof StreetEdge){
-//                        ((StreetEdge) closeStreet).setNoise(3000);
-//                    }
-//                }
-//
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
+                            + "graph writer scheduler.", this.hashCode());
             // Do some writing to the graph here
         }
     }

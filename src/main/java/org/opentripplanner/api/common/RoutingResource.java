@@ -640,7 +640,7 @@ public abstract class RoutingResource {
             request.wheelchairPartiallyAccessiblePenalty = wheelchairPartiallyAccessiblePenalty;
 
         if (environmentalFactors != null)
-            request.environmentalFactorThresholds = new EnvironmentalFactorsThresholdsBuilder().builder(environmentalFactors);
+            // FIXME request.environmentalFactorThresholds = new EnvironmentalFactorsThresholdsBuilder().builder(environmentalFactors);
 
         //getLocale function returns defaultLocale if locale is null
         request.locale = ResourceBundleSingleton.INSTANCE.getLocale(locale);

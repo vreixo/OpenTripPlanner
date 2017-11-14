@@ -567,6 +567,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.8.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-all</artifactId>
             <version>1.10.19</version>
@@ -788,6 +794,13 @@
             <groupId>io.opentraffic</groupId>
             <artifactId>traffic-engine</artifactId>
             <version>0.2</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.github.thanglequoc/aqi-calculator -->
+        <dependency>
+            <groupId>com.github.thanglequoc</groupId>
+            <artifactId>aqi-calculator</artifactId>
+            <version>1.2.2</version>
         </dependency>
 
         <!-- r5 is needed only so that we can delegate Analyst work to it -->

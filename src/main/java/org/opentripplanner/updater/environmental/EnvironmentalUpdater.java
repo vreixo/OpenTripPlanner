@@ -22,7 +22,8 @@ import org.opentripplanner.updater.GraphUpdaterManager;
 import org.opentripplanner.updater.GraphWriterRunnable;
 import org.opentripplanner.updater.JsonConfigurable;
 import org.opentripplanner.updater.PollingGraphUpdater;
-import org.opentripplanner.updater.environmental.updaters.OpenAqPollutionlDataSource;
+import org.opentripplanner.updater.environmental.updaters.MedioAmbienteMadridNoiseDataSource;
+import org.opentripplanner.updater.environmental.updaters.OpenAqPollutionDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +31,10 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Pollution edge updater which encapsulate one EnvironmentalDataSource.
- *
+ * Pollution edge updater which encapsulate one StationsDataSource.
+ * <p>
  * Usage example ('pollution' name is an example) in the file 'Graph.properties':
- *
+ * <p>
  * <pre>
  * pollution.type = environmental-updater
  * pollution.frequencySec = 60
@@ -41,16 +42,16 @@ import java.util.concurrent.ExecutionException;
  * pollution.url = https://api.openaq.org/v1/latest?coordinates=40.41,-3.70&radius=35000
  * </pre>
  */
-public class EnvironmentalPollingUpdater extends PollingGraphUpdater {
+public class EnvironmentalUpdater extends PollingGraphUpdater {
 
     private static final Logger LOG = LoggerFactory.getLogger(
-            EnvironmentalPollingUpdater.class);
+            EnvironmentalUpdater.class);
 
-    private final int AFFECTED_AREA_RADIUS_IN_METERS = 100;
+    private static final int AFFECTED_AREA_RADIUS_IN_METERS = 100;
 
     private GraphUpdaterManager updaterManager;
 
-    private EnvironmentalDataSource source;
+    private StationsDataSource source;
 
     private Graph graph;
 
@@ -60,29 +61,32 @@ public class EnvironmentalPollingUpdater extends PollingGraphUpdater {
     }
 
     @Override
-    protected void configurePolling (Graph graph, JsonNode config) throws Exception {
+    protected void configurePolling(Graph graph, JsonNode config) throws Exception {
 
         // Set data source type from config JSON
         String sourceType = config.path("sourceType").asText();
         String apiKey = config.path("apiKey").asText();
-        EnvironmentalDataSource source = null;
+        StationsDataSource source = null;
         if (sourceType != null) {
             if (sourceType.equals("openaq")) {
-                source = new OpenAqPollutionlDataSource();
+                source = new OpenAqPollutionDataSource();
+            }
+            if (sourceType.equals("medio-ambiente-madrid")) {
+                source = new MedioAmbienteMadridNoiseDataSource();
             }
         }
 
         if (source == null) {
-            throw new IllegalArgumentException("Unknown bike rental source type: " + sourceType);
+            throw new IllegalArgumentException("Unknown environmental source type: " + sourceType);
         } else if (source instanceof JsonConfigurable) {
             ((JsonConfigurable) source).configure(graph, config);
         }
 
         // Configure updater
-        LOG.info("Setting up bike rental updater.");
+        LOG.info("Setting up environmental updater.");
         this.graph = graph;
         this.source = source;
-        LOG.info("Creating bike-rental updater running every {} seconds : {}", frequencySec, source);
+        LOG.info("Creating environmental updater running every {} seconds : {}", frequencySec, source);
     }
 
     @Override
@@ -107,19 +111,19 @@ public class EnvironmentalPollingUpdater extends PollingGraphUpdater {
     public void teardown() {
     }
 
-    private class EnvironmentalFactorsGraphWriterRunnable implements GraphWriterRunnable {
+    protected class EnvironmentalFactorsGraphWriterRunnable implements GraphWriterRunnable {
 
-        private List<EnvironmentalStation> stations;
+        protected List<EnvironmentalStation> stations;
 
         public EnvironmentalFactorsGraphWriterRunnable(List<EnvironmentalStation> stations) {
             this.stations = stations;
         }
 
-		@Override
+        @Override
         public void run(Graph graph) {
-            for (EnvironmentalStation station : stations) {
-                updateStreetsNearStation(station);
-            }
+            stations.stream()
+                    .filter(environmentalStation -> !environmentalStation.getMeasurements().isEmpty())
+                    .forEach(this::updateStreetsNearStation);
         }
 
         private void updateStreetsNearStation(EnvironmentalStation station) {

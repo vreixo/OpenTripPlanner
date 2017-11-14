@@ -18,7 +18,7 @@ import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.updater.alerts.GtfsRealtimeAlertsUpdater;
 import org.opentripplanner.updater.bike_park.BikeParkUpdater;
 import org.opentripplanner.updater.bike_rental.BikeRentalUpdater;
-import org.opentripplanner.updater.environmental.EnvironmentalPollingUpdater;
+import org.opentripplanner.updater.environmental.EnvironmentalUpdater;
 import org.opentripplanner.updater.example.ExampleGraphUpdater;
 import org.opentripplanner.updater.example.ExamplePollingGraphUpdater;
 import org.opentripplanner.updater.stoptime.PollingStoptimeUpdater;
@@ -113,7 +113,7 @@ public abstract class GraphUpdaterConfigurator {
                     updater = new OpenTrafficUpdater();
                 }
                 else if (type.equals("environmental-updater")) {
-                    updater = new EnvironmentalPollingUpdater();
+                    updater = new EnvironmentalUpdater();
                 }
             }
 

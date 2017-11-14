@@ -10,17 +10,17 @@ import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
  * Builder that creates a list of EnvironmentalFactorThreshold from an input String of ampersand
  * separated elements that represent the threshold of one of the allowed properties (average or
  * peak) for the specific environmental factor.
- * 
+ *
  * Each of the elements of the given string should have the following format:
  * ENVIROMENTAL_{factorType}_{propertyName (MAX_AVERAGE or MAX_PEAK)}:{value}
- * 
+ *
  * Any element with other format will be ignored.
- * 
+ *
  * Here is an example of a valid input:
  * ENVIRONMENTAL_POLLUTION_MAX_AVERAGE=5.0&ENVIRONMENTAL_POLLUTION_MAX_PEAK=15.0&ENVIRONMENTAL_ALLERGIC_MAX_AVERAGE=10.0
  */
 public class EnvironmentalFactorsThresholdsBuilder {
-   
+
     public static List<EnvironmentalFactorThreshold> build(String inputString) {
         final List<EnvironmentalFactorThreshold> thresholds = new ArrayList<>();
 

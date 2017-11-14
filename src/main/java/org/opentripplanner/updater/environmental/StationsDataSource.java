@@ -15,7 +15,7 @@ package org.opentripplanner.updater.environmental;
 
 import java.util.List;
 
-public interface EnvironmentalDataSource {
+public interface StationsDataSource {
 
         /**
          * Update the data from the source;
@@ -23,6 +23,6 @@ public interface EnvironmentalDataSource {
          */
         boolean update();
 
-        List<EnvironmentalStation> getStations();
+        <T extends EnvironmentalStation> List<T> getStations();
 
 }

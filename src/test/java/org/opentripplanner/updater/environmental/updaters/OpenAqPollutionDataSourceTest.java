@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,9 +87,9 @@ public class OpenAqPollutionDataSourceTest {
         assertThat(stations.stream().noneMatch(station ->
                 station.calculateEnvironmentalFactorsMeasurements().isEmpty()));
         assertThat(stations.stream().anyMatch(station -> {
-            final List<EnvironmentalFactorMeasurement> environmentalFactorMeasurements = station.calculateEnvironmentalFactorsMeasurements();
-            return environmentalFactorMeasurements.stream().anyMatch(
-                    environmentalFactorMeasurement -> EnvironmentalFactorType.ALLERGIC == environmentalFactorMeasurement.getType());
+            final Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorMeasurements = station.calculateEnvironmentalFactorsMeasurements();
+            return environmentalFactorMeasurements.values().stream().anyMatch(
+                    environmentalFactorMeasurement -> EnvironmentalFactorType.ALLERGIC == environmentalFactorMeasurement.type);
         }));
         assertThat(stations.stream().anyMatch(station ->
                 !station.getMeasurements().isEmpty()));

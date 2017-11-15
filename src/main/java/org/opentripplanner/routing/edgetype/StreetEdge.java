@@ -20,7 +20,10 @@ import org.opentripplanner.common.TurnRestriction;
 import org.opentripplanner.common.TurnRestrictionType;
 import org.opentripplanner.common.geometry.*;
 import org.opentripplanner.common.model.P2;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorMeasurement;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorThreshold;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.core.*;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Graph;
@@ -40,10 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * This represents a street segment.
@@ -124,13 +124,7 @@ public class StreetEdge extends Edge implements Cloneable {
     /** The angle at the start of the edge geometry. Internal representation like that of inAngle. */
     private byte outAngle;
 
-    private double pollution;
-
-    private double pollen;
-
-    private double noise;
-
-    private List<EnvironmentalFactorMeasurement> environmentalFactorsMeasurements = new ArrayList<>();
+    private Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorsMeasurements;
 
     public StreetEdge(StreetVertex v1, StreetVertex v2, LineString geometry,
                       I18NString name, double length,
@@ -144,6 +138,7 @@ public class StreetEdge extends Edge implements Cloneable {
         this.setPermission(permission);
         this.setCarSpeed(DEFAULT_CAR_SPEED);
         this.setWheelchairAccessible(true); // accessible by default
+        this.environmentalFactorsMeasurements = new HashMap<>();
         if (geometry != null) {
             try {
                 for (Coordinate c : geometry.getCoordinates()) {
@@ -490,27 +485,10 @@ public class StreetEdge extends Edge implements Cloneable {
         }
 
         if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.calculatePeakPollution(pollution);
-        }
-
-        if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.incrementPollutionWithDistance(pollution, getDistance());
-        }
-
-        if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.calculatePeakPollen(pollen);
-        }
-
-        if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.incrementPollenWithDistance(pollen, getDistance());
-        }
-
-        if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.calculatePeakNoise(noise);
-        }
-
-        if (traverseMode.isOnStreetNonTransit() && !traverseMode.isDriving()){
-            s1.incrementNoiseWithDistance(noise, getDistance());
+            for (EnvironmentalFactorMeasurement environmentalFactorMeasurement : environmentalFactorsMeasurements.values()) {
+                s1.calculatePeakFactor(environmentalFactorMeasurement.type, environmentalFactorMeasurement.measurement);
+                s1.incrementFactorWithDistance(environmentalFactorMeasurement.type, environmentalFactorMeasurement.measurement, getDistance());
+            }
         }
 
         if (!traverseMode.isDriving()) {
@@ -550,68 +528,29 @@ public class StreetEdge extends Edge implements Cloneable {
             }
         }
 
-//        if (s1.weHaveTooMuchPollution(options)){
-//            // if we're using a soft walk-limit
-//            if( options.softPeakPollutionLimiting){
-//                // just slap a penalty for the overage onto s1
-//                weight += calculateOverageWeight(s0.getPeakPollution(), s1.getPeakPollution(),
-//                        options.getMaxPeakPollution(), options.softPeakPollutionPenalty,
-//                        options.softPeakPollutionOverageRate);
-//            }
-//            else if( options.softAveragePollutionLimiting) {
-//                weight += calculateOverageWeight(s0.getPollutionWithWalkDistance(), s1.getAveragePollution(),
-//                        options.getMaxAveragePollution(), options.softAveragePollutionPenalty,
-//                        options.softAveragePollutionOverageRate);
-//            }
-//            else {
-//                // else, it's a hard limit; bail
-//                LOG.debug("Too much aditionalStationData. Bailing.");
-//                return null;
-//            }
-//
-//        }
-//
-//        if (s1.weHaveTooMuchPollen(options)){
-//            // if we're using a soft walk-limit
-//            if( options.softPeakPollenLimiting){
-//                // just slap a penalty for the overage onto s1
-//                weight += calculateOverageWeight(s0.getPeakPollen(), s1.getPeakPollen(),
-//                        options.getMaxPeakPollen(), options.softPeakPollenPenalty,
-//                        options.softPeakPollenOverageRate);
-//            }
-//            else if( options.softAveragePollenLimiting) {
-//                weight += calculateOverageWeight(s0.getPollenWithWalkDistance(), s1.getAveragePollen(),
-//                        options.getMaxAveragePollen(), options.softAveragePollenPenalty,
-//                        options.softAveragePollenOverageRate);
-//            }
-//            else {
-//                // else, it's a hard limit; bail
-//                LOG.debug("Too much aditionalStationData. Bailing.");
-//                return null;
-//            }
-//
-//        }
-//
-//        if (s1.weHaveTooMuchNoise(options)){
-//            // if we're using a soft walk-limit
-//            if( options.softPeakNoiseLimiting){
-//                // just slap a penalty for the overage onto s1
-//                weight += calculateOverageWeight(s0.getPeakNoise(), s1.getPeakNoise(),
-//                        options.getMaxPeakNoise(), options.softPeakNoisePenalty,
-//                        options.softPeakNoiseOverageRate);
-//            }
-//            else if( options.softAverageNoiseLimiting) {
-//                weight += calculateOverageWeight(s0.getNoiseWithWalkDistance(), s1.getAverageNoise(),
-//                        options.getMaxAverageNoise(), options.softAverageNoisePenalty,
-//                        options.softAverageNoiseOverageRate);
-//            }
-//            else {
-//                // else, it's a hard limit; bail
-//                LOG.debug("Too much aditionalStationData. Bailing.");
-//                return null;
-//            }
-//
-//        }
+        for (EnvironmentalFactorMeasurement environmentalFactorMeasurement : environmentalFactorsMeasurements.values()) {
+            final EnvironmentalFactorType type = environmentalFactorMeasurement.type;
+            final EnvironmentalFactorThreshold environmentalFactorThreshold = options.environmentalFactorThresholds.get(type);
+            final EnvironmentalFactor environmentalFactorS0 = s0.environmentalFactors.get(type);
+            if (s1.weHaveTooMuchFactor(options, type)) {
+                // if we're using a soft walk-limit
+                if (environmentalFactorThreshold.softPeakLimiting) {
+                    // just slap a penalty for the overage onto s1
+                    weight += calculateOverageWeight(environmentalFactorS0.peak, s1.getPeakFactor(type),
+                            environmentalFactorThreshold.maxPeak, environmentalFactorThreshold.softPeakPenalty,
+                            environmentalFactorThreshold.softPeakOverageRate);
+                } else if (environmentalFactorThreshold.softAverageLimiting) {
+                    weight += calculateOverageWeight(environmentalFactorS0.accumulated, s1.getAverageFactor(type),
+                            environmentalFactorThreshold.maxAverage, environmentalFactorThreshold.softAveragePenalty,
+                            environmentalFactorThreshold.softAverageOverageRate);
+                } else {
+                    // else, it's a hard limit; bail
+                    LOG.debug("Too much factor. Bailing.");
+                    return null;
+                }
+
+            }
+        }
 
         s1.incrementTimeInSeconds(roundedTime);
         
@@ -1006,35 +945,11 @@ public class StreetEdge extends Edge implements Cloneable {
             return -1;
     }
 
-    public double getPollution() {
-        return pollution;
-    }
-
-    public void setPollution(double pollution) {
-        this.pollution = pollution;
-    }
-
-    public double getPollen() {
-        return pollen;
-    }
-
-    public double getNoise() {
-        return noise;
-    }
-
-    public void setPollen(double pollen) {
-        this.pollen = pollen;
-    }
-
-    public void setNoise(double noise) {
-        this.noise = noise;
-    }
-
-    public List<EnvironmentalFactorMeasurement> getEnvironmentalFactorsMeasurements() {
+    public Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> getEnvironmentalFactorsMeasurements() {
         return environmentalFactorsMeasurements;
     }
 
-    public void addEnvironmentalFactors(List<EnvironmentalFactorMeasurement> environmentalFactors) {
-        this.environmentalFactorsMeasurements.addAll(environmentalFactors);
+    public void putEnvironmentalFactors(Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactors) {
+        this.environmentalFactorsMeasurements.putAll(environmentalFactors);
     }
 }

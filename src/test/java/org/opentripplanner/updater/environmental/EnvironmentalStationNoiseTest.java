@@ -7,6 +7,7 @@ import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,10 +53,10 @@ public class EnvironmentalStationNoiseTest {
 
     @Test
     public void calculateEnvironmentalFactorsMeasurements() throws Exception {
-        final List<EnvironmentalFactorMeasurement> environmentalFactorMeasurements = environmentalStationNoise.calculateEnvironmentalFactorsMeasurements();
-        final EnvironmentalFactorMeasurement environmentalFactorMeasurement = environmentalFactorMeasurements.get(0);
-        assertThat(environmentalFactorMeasurement.getType()).isEqualTo(EnvironmentalFactorType.NOISE);
-        assertThat(environmentalFactorMeasurement.getMeasurement()).isEqualTo((environmentalStationNoise.getMeasurements().get(0).getValue()
+        final Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorMeasurements = environmentalStationNoise.calculateEnvironmentalFactorsMeasurements();
+        final EnvironmentalFactorMeasurement environmentalFactorMeasurement = environmentalFactorMeasurements.get(EnvironmentalFactorType.NOISE);
+        assertThat(environmentalFactorMeasurement.type).isEqualTo(EnvironmentalFactorType.NOISE);
+        assertThat(environmentalFactorMeasurement.measurement).isEqualTo((environmentalStationNoise.getMeasurements().get(0).getValue()
                 + environmentalStationNoise.getMeasurements().get(1).getValue()
                 + environmentalStationNoise.getMeasurements().get(2).getValue()
                 + environmentalStationNoise.getMeasurements().get(3).getValue()

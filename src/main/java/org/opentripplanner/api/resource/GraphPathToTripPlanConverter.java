@@ -26,6 +26,7 @@ import org.opentripplanner.profile.BikeRentalStationInfo;
 import org.opentripplanner.routing.alertpatch.Alert;
 import org.opentripplanner.routing.alertpatch.AlertPatch;
 import org.opentripplanner.routing.bike_rental.BikeRentalStation;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
 import org.opentripplanner.routing.core.*;
 import org.opentripplanner.routing.edgetype.*;
 import org.opentripplanner.routing.error.TrivialPathException;
@@ -132,30 +133,17 @@ public abstract class GraphPathToTripPlanConverter {
         if (itinerary.walkDistance > request.maxWalkDistance) {
             itinerary.walkLimitExceeded = true;
         }
-//        // Check pollutionWithWalkDistance level limit
-//        if (itinerary.averagePollution > request.maxAveragePollution) {
-//            itinerary.averagePollutionLimitExceeded = true;
-//        }
-//        // Check pollutionWithWalkDistance level limit
-//        if (itinerary.peakPollution > request.maxPeakPollution) {
-//            itinerary.peakPollutionLimitExceeded = true;
-//        }
-//        // Check pollenWithWalkDistance level limit
-//        if (itinerary.averagePollen > request.maxAveragePollen) {
-//            itinerary.averagePollenLimitExceeded = true;
-//        }
-//        // Check pollenWithWalkDistance level limit
-//        if (itinerary.peakPollen > request.maxPeakPollen) {
-//            itinerary.peakPollenLimitExceeded = true;
-//        }
-//        // Check pollutionWithWalkDistance level limit
-//        if (itinerary.averageNoise > request.maxAverageNoise) {
-//            itinerary.averageNoiseLimitExceeded = true;
-//        }
-//        // Check pollutionWithWalkDistance level limit
-//        if (itinerary.peakNoise > request.maxPeakNoise) {
-//            itinerary.peakNoiseLimitExceeded = true;
-//        }
+
+        // Check peak, average thresholds for all factors
+        for (EnvironmentalFactor environmentalFactor : itinerary.environmentalFactors.values()) {
+            if (environmentalFactor.accumulated > request.environmentalFactorThresholds.get(environmentalFactor.type).maxAverage) {
+                environmentalFactor.accumulatedLimitExceeded = true;
+            }
+            if (environmentalFactor.peak > request.environmentalFactorThresholds.get(environmentalFactor.type).maxPeak) {
+                environmentalFactor.peakLimitExceeded = true;
+            }
+        }
+
         // Return itinerary
         return itinerary;
     }
@@ -207,17 +195,10 @@ public abstract class GraphPathToTripPlanConverter {
 
         itinerary.walkDistance = lastState.getWalkDistance();
 
-        itinerary.averagePollution = lastState.getPollutionWithWalkDistance() / itinerary.walkDistance;
-
-        itinerary.peakPollution = lastState.getPeakPollution();
-
-        itinerary.averagePollen = lastState.getPollenWithWalkDistance() / itinerary.walkDistance;
-
-        itinerary.peakPollen = lastState.getPeakPollen();
-
-        itinerary.averageNoise = lastState.getNoiseWithWalkDistance() / itinerary.walkDistance;
-
-        itinerary.peakNoise = lastState.getPeakNoise();
+        for (EnvironmentalFactor environmentalFactor : itinerary.environmentalFactors.values()) {
+            environmentalFactor.accumulated = lastState.environmentalFactors.get(environmentalFactor.type).accumulated / itinerary.walkDistance;
+            environmentalFactor.peak = lastState.environmentalFactors.get(environmentalFactor.type).peak;
+        }
 
         itinerary.transfers = lastState.getNumBoardings();
         if (itinerary.transfers > 0 && !(states[0].getVertex() instanceof OnboardDepartVertex)) {
@@ -1112,9 +1093,7 @@ public abstract class GraphPathToTripPlanConverter {
         step.addAlerts(graph.streetNotesService.getNotes(s), wantedLocale);
         step.angle = DirectionUtils.getFirstAngle(s.getBackEdge().getGeometry());
         if (en instanceof StreetEdge){
-            step.pollution = ((StreetEdge) en).getPollution();
-            step.pollen = ((StreetEdge) en).getPollen();
-            step.noise = ((StreetEdge) en).getNoise();
+            step.environmentalFactorMeasurements = ((StreetEdge) en).getEnvironmentalFactorsMeasurements();
         }
         if (s.getBackEdge() instanceof AreaEdge) {
             step.area = true;

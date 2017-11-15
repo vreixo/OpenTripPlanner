@@ -131,7 +131,7 @@ public class EnvironmentalUpdater extends PollingGraphUpdater {
                     .getNearbyEdges(new Coordinate(station.getX(), station.getY()),
                             AFFECTED_AREA_RADIUS_IN_METERS);
             nearbyEdges.stream().filter(edge -> edge instanceof StreetEdge).forEach(
-                    edge -> ((StreetEdge) edge).addEnvironmentalFactors(station.calculateEnvironmentalFactorsMeasurements()));
+                    edge -> ((StreetEdge) edge).putEnvironmentalFactors(station.calculateEnvironmentalFactorsMeasurements()));
         }
     }
 }

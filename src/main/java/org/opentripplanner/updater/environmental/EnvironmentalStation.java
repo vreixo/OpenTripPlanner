@@ -82,7 +82,7 @@ public abstract class EnvironmentalStation {
         }
          if (numberOfSubFactors > 1) {
             EnvironmentalFactorMeasurement environmentalFactorMeasurement = new EnvironmentalFactorMeasurement();
-            environmentalFactorMeasurement.setType(type);
+            environmentalFactorMeasurement.type = type;
             final double measurement;
             if (aggregator != null) {
                 measurement = aggregator.apply(weightedValues);
@@ -90,7 +90,7 @@ public abstract class EnvironmentalStation {
             else {
                 measurement = getAverage(numberOfSubFactors, weightedValues);
             }
-            environmentalFactorMeasurement.setMeasurement(measurement);
+            environmentalFactorMeasurement.measurement = measurement;
             return environmentalFactorMeasurement;
         }
         else {
@@ -133,6 +133,6 @@ public abstract class EnvironmentalStation {
         this.locale = locale;
     }
 
-    public abstract List<EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements();
+    public abstract Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements();
 
 }

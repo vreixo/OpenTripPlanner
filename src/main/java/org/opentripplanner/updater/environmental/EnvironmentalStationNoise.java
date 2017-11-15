@@ -44,8 +44,8 @@ public class EnvironmentalStationNoise extends EnvironmentalStation {
     }
 
     @Override
-    public List<EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements() {
-        return Collections.singletonList(
+    public Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements() {
+        return Collections.singletonMap(EnvironmentalFactorType.NOISE, 
                 getFactor(weightsPerNoiseSubFactors,  EnvironmentalFactorType.NOISE, null));
     }
 

@@ -13,16 +13,14 @@
 
 package org.opentripplanner.routing.core;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.Trip;
 import org.opentripplanner.routing.algorithm.NegativeWeightException;
 import org.opentripplanner.routing.constraints.EnvironmentalFactor;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.edgetype.*;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
@@ -58,25 +56,13 @@ public class State implements Cloneable {
     // we should DEFINITELY rename this variable and the associated methods.
     public double walkDistance;
 
-    public double pollutionWithWalkDistance;
-
-    public double peakPollution;
-
-    public double pollenWithWalkDistance;
-
-    public double peakPollen;
-
-    public double noiseWithWalkDistance;
-
-    public double peakNoise;
-
     // The time traveled pre-transit, for park and ride or kiss and ride searches
     int preTransitTime;
 
     // track the states of all path parsers -- probably changes frequently
     protected int[] pathParserStates;
 
-    private List<EnvironmentalFactor> environmentalFactors;
+    public Map<EnvironmentalFactorType, EnvironmentalFactor> environmentalFactors;
     
     private static final Logger LOG = LoggerFactory.getLogger(State.class);
 
@@ -143,12 +129,7 @@ public class State implements Cloneable {
                     : TraverseMode.BICYCLE;
         }
         this.walkDistance = 0;
-        this.pollutionWithWalkDistance = 0;
-        this.peakPollution = 0;
-        this.pollenWithWalkDistance = 0;
-        this.peakPollen = 0;
-        this.noiseWithWalkDistance = 0;
-        this.peakNoise = 0;
+        this.environmentalFactors = new HashMap<>();
         this.preTransitTime = 0;
         this.time = timeSeconds * 1000;
         stateData.routeSequence = new AgencyAndId[0];
@@ -358,54 +339,20 @@ public class State implements Cloneable {
             return 0.0;
     }
 
-    public double getAveragePollutionDelta() {
+    public double getAverageDelta(EnvironmentalFactorType environmentalFactorType) {
         if (backState != null)
-            return Math.abs(this.pollutionWithWalkDistance - backState.pollutionWithWalkDistance);
+            return Math.abs(this.environmentalFactors.get(environmentalFactorType).accumulated
+                    - backState.environmentalFactors.get(environmentalFactorType).accumulated);
         else
             return 0.0;
     }
 
-    public double getPeakPollutionDelta() {
+    public double getPeakDelta(EnvironmentalFactorType environmentalFactorType) {
         if (backState != null)
-            return Math.abs(this.peakPollution - backState.peakPollution);
+            return Math.abs(this.environmentalFactors.get(environmentalFactorType).peak
+                    - backState.environmentalFactors.get(environmentalFactorType).peak);
         else
             return 0.0;
-    }
-
-    public double getAveragePollenDelta() {
-        if (backState != null)
-            return Math.abs(this.pollenWithWalkDistance - backState.pollenWithWalkDistance);
-        else
-            return 0.0;
-    }
-
-    public double getPeakPollenDelta() {
-        if (backState != null)
-            return Math.abs(this.peakPollen - backState.peakPollen);
-        else
-            return 0.0;
-    }
-
-    public double getAverageNoiseDelta() {
-        if (backState != null)
-            return Math.abs(this.noiseWithWalkDistance - backState.noiseWithWalkDistance);
-        else
-            return 0.0;
-    }
-
-    public double getPeakNoiseDelta() {
-        if (backState != null)
-            return Math.abs(this.peakNoise - backState.peakNoise);
-        else
-            return 0.0;
-    }
-
-    public List<EnvironmentalFactor> getEnvironmentalFactors() {
-        return environmentalFactors;
-    }
-
-    public void setEnvironmentalFactors(List<EnvironmentalFactor> environmentalFactors) {
-        this.environmentalFactors = environmentalFactors;
     }
 
     public int getPreTransitTimeDelta () {
@@ -782,10 +729,10 @@ public class State implements Cloneable {
 
                 editor.incrementTimeInSeconds(orig.getAbsTimeDeltaSeconds());
                 editor.incrementWeight(orig.getWeightDelta());
-                editor.calculatePeakPollution(orig.getPeakPollutionDelta());
-                editor.calculatePeakPollen(orig.getPeakPollenDelta());
-                editor.calculatePeakNoise(orig.getPeakNoiseDelta());
-//                editor.incrementPollutionWithDistance(orig.getAveragePollutionDelta(), orig.getWalkDistanceDelta());
+                for (EnvironmentalFactor environmentalFactor : environmentalFactors.values()) {
+                    editor.calculatePeakFactor(environmentalFactor.type, orig.getPeakDelta(environmentalFactor.type));
+                    editor.incrementFactorWithDistance(environmentalFactor.type, orig.getAverageDelta(environmentalFactor.type), orig.getWalkDistanceDelta());
+                }
                 // must be calculated afterwards to keep previous accumulated distance
                 editor.incrementWalkDistance(orig.getWalkDistanceDelta());
                 editor.incrementPreTransitTime(orig.getPreTransitTimeDelta());
@@ -911,27 +858,4 @@ public class State implements Cloneable {
         return stateData.enteredNoThroughTrafficArea;
     }
 
-    public double getPollutionWithWalkDistance() {
-        return pollutionWithWalkDistance;
-    }
-
-    public double getPeakPollution() {
-        return peakPollution;
-    }
-
-    public double getPollenWithWalkDistance() {
-        return pollenWithWalkDistance;
-    }
-
-    public double getPeakPollen() {
-        return peakPollen;
-    }
-
-    public double getNoiseWithWalkDistance() {
-        return noiseWithWalkDistance;
-    }
-
-    public double getPeakNoise() {
-        return peakNoise;
-    }
 }

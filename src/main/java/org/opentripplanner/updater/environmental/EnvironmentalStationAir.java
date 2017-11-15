@@ -48,15 +48,15 @@ public class EnvironmentalStationAir extends EnvironmentalStation {
     }
 
     @Override
-    public List<EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements() {
-        List<EnvironmentalFactorMeasurement> environmentalFactorMeasurements = new ArrayList<>();
+    public Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> calculateEnvironmentalFactorsMeasurements() {
+        Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorMeasurements = new HashMap<>();
         final EnvironmentalFactorMeasurement pollutionFactor = getFactor(weightsPerPollutionSubFactors, EnvironmentalFactorType.POLLUTION, this::maxValue);
         if (pollutionFactor != null) {
-            environmentalFactorMeasurements.add(pollutionFactor);
+            environmentalFactorMeasurements.put(EnvironmentalFactorType.POLLUTION, pollutionFactor);
         }
         final EnvironmentalFactorMeasurement allergicFactor = getFactor(weightsPerAllergicSubFactors, EnvironmentalFactorType.ALLERGIC, null);
         if (allergicFactor != null) {
-            environmentalFactorMeasurements.add(allergicFactor);
+            environmentalFactorMeasurements.put(EnvironmentalFactorType.ALLERGIC, allergicFactor);
         }
         return environmentalFactorMeasurements;
     }

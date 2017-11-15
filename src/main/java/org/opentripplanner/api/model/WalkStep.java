@@ -14,10 +14,7 @@
 
 package org.opentripplanner.api.model;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -27,6 +24,8 @@ import org.opentripplanner.api.model.alertpatch.LocalizedAlert;
 import org.opentripplanner.common.model.P2;
 import org.opentripplanner.profile.BikeRentalStationInfo;
 import org.opentripplanner.routing.alertpatch.Alert;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorMeasurement;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.graph.Edge;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -125,27 +124,23 @@ public class WalkStep {
 
     public transient double angle;
 
-    public double pollution;
-
-    public double pollen;
-
-    public double noise;
+    public Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorMeasurements = new HashMap<>();
 
     /**
      * The walkStep's mode; only populated if this is the first step of that mode in the leg.
-     * Used only in generating the streetEdges array in StreetSegment; not serialized. 
+     * Used only in generating the streetEdges array in StreetSegment; not serialized.
      */
     public transient String newMode;
 
     /**
      * The street edges that make up this walkStep.
-     * Used only in generating the streetEdges array in StreetSegment; not serialized. 
+     * Used only in generating the streetEdges array in StreetSegment; not serialized.
      */
     public transient List<Edge> edges = Lists.newArrayList();
 
     /**
      * The bike rental on/off station info.
-     * Used only in generating the streetEdges array in StreetSegment; not serialized. 
+     * Used only in generating the streetEdges array in StreetSegment; not serialized.
      */
     public transient BikeRentalStationInfo bikeRentalOnStation, bikeRentalOffStation;
 

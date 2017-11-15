@@ -8,6 +8,7 @@ import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
@@ -54,13 +55,19 @@ public class EnvironmentalStationAirTest {
 
     @Test
     public void calculateEnvironmentalFactorsMeasurements() throws Exception {
-        final List<EnvironmentalFactorMeasurement> environmentalFactorMeasurements = environmentalStationAir.calculateEnvironmentalFactorsMeasurements();
-        final EnvironmentalFactorMeasurement environmentalFactorMeasurementPollution = environmentalFactorMeasurements.get(0);
-        assertThat(environmentalFactorMeasurementPollution.getType()).isEqualTo(EnvironmentalFactorType.POLLUTION);
-        assertThat(environmentalFactorMeasurementPollution.getMeasurement()).isEqualTo(3337.334933975);
-        final EnvironmentalFactorMeasurement environmentalFactorMeasurementAllergic = environmentalFactorMeasurements.get(1);
-        assertThat(environmentalFactorMeasurementAllergic.getType()).isEqualTo(EnvironmentalFactorType.ALLERGIC);
-        assertThat(environmentalFactorMeasurementAllergic.getMeasurement()).isEqualTo(environmentalStationAir.getMeasurements().get(5).getValue());
+        final Map<EnvironmentalFactorType, EnvironmentalFactorMeasurement> environmentalFactorMeasurements = environmentalStationAir.calculateEnvironmentalFactorsMeasurements();
+        final EnvironmentalFactorMeasurement environmentalFactorMeasurementPollution = environmentalFactorMeasurements.get(EnvironmentalFactorType.POLLUTION);
+        if (environmentalFactorMeasurementPollution != null) {
+            assertThat(environmentalFactorMeasurementPollution.type).isEqualTo(EnvironmentalFactorType.POLLUTION);
+            assertThat(environmentalFactorMeasurementPollution.measurement).isEqualTo(3337.334933975);
+        }
+        final EnvironmentalFactorMeasurement environmentalFactorMeasurementAllergic = environmentalFactorMeasurements.get(EnvironmentalFactorType.ALLERGIC);
+        if (environmentalFactorMeasurementAllergic != null) {
+            assertThat(environmentalFactorMeasurementAllergic.type).isEqualTo(EnvironmentalFactorType.ALLERGIC);
+            assertThat(environmentalFactorMeasurementAllergic.measurement).isEqualTo(environmentalStationAir.getMeasurements().get(5).getValue());
+        }
+        assertThat(environmentalFactorMeasurementPollution != null
+                || environmentalFactorMeasurementAllergic != null).isTrue();
     }
 
 }

@@ -20,6 +20,7 @@ import java.util.Set;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
 import org.onebusaway.gtfs.model.Trip;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.edgetype.TripPattern;
 import org.opentripplanner.routing.graph.Edge;
 import org.opentripplanner.routing.graph.Vertex;
@@ -147,23 +148,12 @@ public class StateEditor {
         return false;
     }
 
-//    public boolean weHaveTooMuchPollution(RoutingRequest options) {
-//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-//        // walk limiting, in which case we want to cut off the search.
-//        return child.pollutionWithWalkDistance >= options.maxAveragePollution || child.peakPollution >= options.maxPeakPollution;
-//    }
-//
-//    public boolean weHaveTooMuchPollen(RoutingRequest options) {
-//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-//        // walk limiting, in which case we want to cut off the search.
-//        return child.pollenWithWalkDistance >= options.maxAveragePollen || child.peakPollen >= options.maxPeakPollen;
-//    }
-//
-//    public boolean weHaveTooMuchNoise(RoutingRequest options) {
-//        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
-//        // walk limiting, in which case we want to cut off the search.
-//        return child.noiseWithWalkDistance >= options.maxAverageNoise || child.peakNoise >= options.maxPeakNoise;
-//    }
+    public boolean weHaveTooMuchFactor(RoutingRequest options, EnvironmentalFactorType type) {
+        // Only apply limit in transit-only case, unless this is a one-to-many request with hard
+        // walk limiting, in which case we want to cut off the search.
+        return child.environmentalFactors.get(type).accumulated >= options.environmentalFactorThresholds.get(type).maxAverage
+                || child.environmentalFactors.get(type).peak >= options.environmentalFactorThresholds.get(type).maxPeak;
+    }
 
     public boolean isMaxPreTransitTimeExceeded(RoutingRequest options) {
         return child.preTransitTime > options.maxPreTransitTime;
@@ -249,63 +239,22 @@ public class StateEditor {
         child.walkDistance += length;
     }
 
-    public void incrementPollutionWithDistance(double pollution, double length) {
-        if (pollution < 0) {
+    public void incrementFactorWithDistance(EnvironmentalFactorType type, double value, double length) {
+        if (value < 0) {
             LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
             defectiveTraversal = true;
             return;
         }
-        child.pollutionWithWalkDistance += pollution * length;
+        child.environmentalFactors.get(type).accumulated += value * length;
     }
-
-    public void calculatePeakPollution(double pollution) {
-        if (pollution < 0) {
+    public void calculatePeakFactor(EnvironmentalFactorType type, double value) {
+        if (value < 0) {
             LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
             defectiveTraversal = true;
             return;
         }
-        if (pollution > child.peakPollution){
-            child.peakPollution = pollution;
-        }
-    }
-
-    public void incrementPollenWithDistance(double pollen, double length) {
-        if (pollen < 0) {
-            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
-            defectiveTraversal = true;
-            return;
-        }
-        child.pollenWithWalkDistance += pollen * length;
-    }
-
-    public void calculatePeakPollen(double pollen) {
-        if (pollen < 0) {
-            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
-            defectiveTraversal = true;
-            return;
-        }
-        if (pollen > child.peakPollen){
-            child.peakPollen = pollen;
-        }
-    }
-
-    public void incrementNoiseWithDistance(double noise, double length) {
-        if (noise < 0) {
-            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
-            defectiveTraversal = true;
-            return;
-        }
-        child.noiseWithWalkDistance += noise * length;
-    }
-
-    public void calculatePeakNoise(double noise) {
-        if (noise < 0) {
-            LOG.warn("A state's aditionalStationData is being incremented by a negative amount.");
-            defectiveTraversal = true;
-            return;
-        }
-        if (noise > child.peakNoise){
-            child.peakNoise = noise;
+        if (value > child.getPeakDelta(type)){
+            child.environmentalFactors.get(type).peak = value;
         }
     }
 
@@ -562,28 +511,12 @@ public class StateEditor {
         return child.getWalkDistance();
     }
 
-    public double getAveragePollution(){
-        return child.getPollutionWithWalkDistance();
+    public double getAverageFactor(EnvironmentalFactorType type){
+        return child.environmentalFactors.get(type).accumulated;
     }
 
-    public double getPeakPollution(){
-        return child.getPeakPollution();
-    }
-
-    public double getAveragePollen(){
-        return child.getPollenWithWalkDistance();
-    }
-
-    public double getPeakPollen(){
-        return child.getPeakPollen();
-    }
-
-    public double getAverageNoise(){
-        return child.getNoiseWithWalkDistance();
-    }
-
-    public double getPeakNoise(){
-        return child.getPeakNoise();
+    public double getPeakFactor(EnvironmentalFactorType type){
+        return child.environmentalFactors.get(type).peak;
     }
 
     public int getPreTransitTime() {

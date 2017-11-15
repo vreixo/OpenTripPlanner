@@ -12,16 +12,14 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 package org.opentripplanner.api.model;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Iterator;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 
 import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
+import org.opentripplanner.routing.constraints.EnvironmentalFactor;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.core.Fare;
 
 /**
@@ -103,65 +101,7 @@ public class Itinerary {
      */
     public boolean tooSloped = false;
 
-    /**
-     * Indicates that the pollutionWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean averagePollutionLimitExceeded = false;
-
-    /**
-     * Indicates that the pollutionWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean peakPollutionLimitExceeded = false;
-
-    /**
-     * Indicates that the pollenWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean averagePollenLimitExceeded = false;
-
-    /**
-     * Indicates that the pollenWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean peakPollenLimitExceeded = false;
-
-    /**
-     * Indicates that the noiseWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean averageNoiseLimitExceeded = false;
-
-    /**
-     * Indicates that the noiseWithWalkDistance limit has been exceeded for this itinerary when true.
-     */
-    public boolean peakNoiseLimitExceeded = false;
-
-    /**wheelchairBoarding
-     * How much pollutionWithWalkDistance is present in this itinerary
-     */
-    public Double averagePollution = 0.0;
-
-    /**
-     * Top pollutionWithWalkDistance level present in this itinerary
-     */
-    public Double peakPollution = 0.0;
-
-    /**
-     * How much pollenWithWalkDistance is present in this itinerary
-     */
-    public Double averagePollen = 0.0;
-
-    /**
-     * Top pollenWithWalkDistance level present in this itinerary
-     */
-    public Double peakPollen = 0.0;
-
-    /**
-     * How much noiseWithWalkDistance is present in this itinerary
-     */
-    public Double averageNoise = 0.0;
-
-    /**
-     * Top noiseWithWalkDistance level present in this itinerary
-     */
-    public Double peakNoise = 0.0;
+    public Map<EnvironmentalFactorType, EnvironmentalFactor> environmentalFactors = new HashMap<>();
 
     /**
      * adds leg to array list

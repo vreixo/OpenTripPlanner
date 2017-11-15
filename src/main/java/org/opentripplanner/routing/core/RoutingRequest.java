@@ -22,6 +22,7 @@ import org.opentripplanner.common.MavenVersion;
 import org.opentripplanner.common.model.GenericLocation;
 import org.opentripplanner.common.model.NamedPlace;
 import org.opentripplanner.routing.constraints.EnvironmentalFactorThreshold;
+import org.opentripplanner.routing.constraints.EnvironmentalFactorType;
 import org.opentripplanner.routing.edgetype.StreetEdge;
 import org.opentripplanner.routing.error.TrivialPathException;
 import org.opentripplanner.routing.graph.Edge;
@@ -448,7 +449,7 @@ public class RoutingRequest implements Cloneable, Serializable {
      */
     private StreetEdge splitEdge = null;
 
-    public List<EnvironmentalFactorThreshold> environmentalFactorThresholds = new ArrayList<>();
+    public Map<EnvironmentalFactorType, EnvironmentalFactorThreshold> environmentalFactorThresholds = new HashMap<>();
 
     /* CONSTRUCTORS */
 

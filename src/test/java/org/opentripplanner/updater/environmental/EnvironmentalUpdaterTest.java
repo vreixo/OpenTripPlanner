@@ -87,14 +87,15 @@ public class EnvironmentalUpdaterTest {
         final StreetEdge secondEdge = new StreetEdge(new StreetLocation(UUID.randomUUID().toString(), new Coordinate(0, 0), "secondOrigin"), new StreetLocation(UUID.randomUUID().toString(), new Coordinate(1, 1), "secondDestination"), null, "first", 50, null, false);
         when(streetIndex.getNearbyEdges(any(Coordinate.class), anyDouble())).thenReturn(Arrays.asList(firstEdge, secondEdge));
         runScheduling(jsonConfigString, true);
-        assertThat(firstEdge.getEnvironmentalFactorsMeasurements()).isNotEmpty();
-        assertThat(firstEdge.getEnvironmentalFactorsMeasurements().stream()
-                .allMatch(environmentalFactorMeasurement -> environmentalFactorMeasurement.getType() == EnvironmentalFactorType.POLLUTION
-                    || environmentalFactorMeasurement.getType() == EnvironmentalFactorType.ALLERGIC)).isTrue();
-        assertThat(secondEdge.getEnvironmentalFactorsMeasurements()).isNotEmpty();
-        assertThat(secondEdge.getEnvironmentalFactorsMeasurements().stream()
-                .allMatch(environmentalFactorMeasurement -> environmentalFactorMeasurement.getType() == EnvironmentalFactorType.POLLUTION
-                        || environmentalFactorMeasurement.getType() == EnvironmentalFactorType.ALLERGIC)).isTrue();
+        checkEdge(firstEdge);
+        checkEdge(secondEdge);
+    }
+
+    private void checkEdge(StreetEdge secondEdge) {
+        assertThat((secondEdge.getEnvironmentalFactorsMeasurements().get(EnvironmentalFactorType.POLLUTION) != null
+                && secondEdge.getEnvironmentalFactorsMeasurements().get(EnvironmentalFactorType.POLLUTION).measurement != null)
+                || (secondEdge.getEnvironmentalFactorsMeasurements().get(EnvironmentalFactorType.ALLERGIC) != null
+                && secondEdge.getEnvironmentalFactorsMeasurements().get(EnvironmentalFactorType.ALLERGIC).measurement != null));
     }
 
     private void runScheduling(String jsonConfigString, boolean useRealUpdater) throws Exception {
